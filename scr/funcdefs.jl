@@ -14,6 +14,8 @@ extractind(w,i) = map(x->x[i],w)
 
 indbin(x_,binx) = (x_>=binx[end]) ? error("bin does not exist") : findfirst(x -> x > x_, binx) -1  # look up in which bin x_ is located
 
+graphlaplacian(m,n) = Matrix(lap(grid2(m,n))) + I/(m*n)^2
+
 """
 Compute inverse graph Laplacian, with power parameter (ρ) fixed to one.
 """
@@ -26,6 +28,32 @@ function invgraphlaplacian(m,n,τ) # order columnwise
     (Σ+Σ')/2
 end
 
+"""
+Generate data for current status continuous mark model.
+"""
+function gendata(case, N)
+    t = sqrt.(rand(N))
+    if case=="x+y"
+        x = -0.5 .+ 0.5 *sqrt.(1 .+ 8*rand(N))
+        y = -x .+ sqrt.(x.^2 .+ (2x .+ 1) .* rand(N))
+    end
+    if case=="uniform"
+        x = rand(N)
+        y = rand(N)
+    end
+    if case=="(3/8)(x2+y)"
+        u = rand(N)
+        x = (2u .+ sqrt.(4*u.^2 .+ 1)).^(1/3) .- abs.(2u .- sqrt.(4*u.^2 .+ 1)).^(1/3)
+        y = -x.^2 + sqrt.(x.^4 .+ 4*(x.^2 .+ 1) .* rand(N))
+    end
+    # find indices of case where x<t (y observed) and x>= t (y not observed)
+    ind_yknown = findall(x.<t)
+    ind_yunknown = findall(x.>=t)
+    # So as available data we are given ind_yknown, ind_yunknown, t and y[ind_yknown]
+
+    x, y, t, ind_yknown, ind_yunknown
+end
+
 function Ftrue(x,y,truedatagen)
     if truedatagen=="uniform"
         return(x*y)
@@ -35,6 +63,18 @@ function Ftrue(x,y,truedatagen)
     end
     if truedatagen=="(3/8)(x2+y)"
         return((3/8)*(y*(x^3)/3 + 0.5*x*y^2))
+    end
+end
+
+function ftrue(x,y,truedatagen)
+    if truedatagen=="uniform"
+        return(1)
+    end
+    if truedatagen=="x+y"
+        return(x+y)
+    end
+    if truedatagen=="(3/8)(x2+y)"
+        return((3/8)*(x^2 + y))
     end
 end
 
@@ -57,103 +97,98 @@ function binprobtrue(binx,biny,truedatagen)
     out
 end
 
-"""
-Generate data for current status continuous mark model.
-"""
-function gendata(case, N)
-    if case=="x+y"
-        x = -0.5 .+ 0.5 *sqrt.(1 .+ 8*rand(N))
-        y = -x .+ sqrt.(x.^2 .+ (2x .+ 1) .* rand(N))
-        t = sqrt.(rand(N))  # what we wish
+function denstrue(x,y,truedatagen)
+    out = Float64[]
+    for i in eachindex(x)
+        for j in eachindex(y)
+            val = ftrue(x[i],y[j], truedatagen)
+            push!(out, val)
+        end
     end
-    if case=="uniform"
-        x = rand(N)
-        y = rand(N)
-        t = rand(N)
-    end
-    if case=="(3/8)(x2+y)"
-        u = rand(N)
-        x = (2u .+ sqrt.(4*u.^2 .+ 1)).^(1/3) .- abs.(2u .- sqrt.(4*u.^2 .+ 1)).^(1/3)
-        y = -x.^2 + sqrt.(x.^4 .+ 4*(x.^2 .+ 1) .* rand(N))
-        t = sqrt.(rand(N))  # what we wish
-    end
-    # find indices of case where x<t (y observed) and x>= t (y not observed)
-    ind_yknown = findall(x.<t)
-    ind_yunknown = findall(x.>=t)
-    # So as available data we are given ind_yknown, ind_yunknown, t and y[ind_yknown]
-
-    x, y, t, ind_yknown, ind_yunknown
+    out
 end
 
-
-"""
-Evaluate cdf of piecewise constant density in point (x,y), when the values on the bins are contained in the matrix w, and
-the grid specifying the bins is given by binx (horizontal direction) and biny (vertical direction)
-
-Implementation can be made more efficient, but probably not worth the effort.
-"""
-function cdf_(x,y,w,binx,biny)  # weights correspond to density in bins
+function f_piecewise_constant(x,y,binx,biny,dweights)
+    n = length(binx)-1
     ix = indbin(x,binx)
     iy = indbin(y,biny)
-    out = (x-binx[ix])*(y-biny[iy])*w[ix,iy]
-    for i in 1:ix-1
-        out += (binx[i+1]-binx[i]) * (y-biny[iy])*w[i,iy]
-    end
-    for j in 1:iy-1
-        out += (x-binx[ix]) * (biny[j+1]-biny[j])*w[ix,j]
-    end
-    for i in 1:ix-1, j in 1:iy-1
-        out += (binx[i+1]-binx[i])*(biny[j+1]-biny[j])*w[i,j]
+    dweights[(ix-1)*n + iy]
+end
+
+function dens_piecewise_constant(gridx,gridy,binx,biny,dweights)
+    out = Float64[]
+    for i in eachindex(gridx)
+        for j in eachindex(gridy)
+            val = f_piecewise_constant(gridx[i],gridy[j],binx,biny,dweights)
+            push!(out, val)
+        end
     end
     out
 end
 
 
+"""
+Compare bin probabilities in pweights to true bin probabilities computed using treudatagen
+"""
+function plotting_p(pest,truedatagen,binx,biny,titel;mincol_lim=-1,maxcol_lim=1)
+    m = length(binx)-1 ; n = length(biny)-1
+    xx = repeat(binx[2:end],inner=n)
+    yy = repeat(biny[2:end],outer=m)
+    ptrue = binprobtrue(binx,biny,truedatagen)  # true bin probabilities
+    d = DataFrame(pest=pest, ptrue=ptrue, x=xx, y=yy)
+    CSV.write("./out/"*titel*"binprob.csv",d)
+    @rput d
+    @rput titel
+    @rput mincol_lim
+    @rput maxcol_lim
+    R"""
+        library(ggplot2)
+        library(tidyverse)
+        ggplot(data=d,aes(x, y, fill=pest-ptrue)) + geom_tile() +
+        scale_fill_gradient2(limits=c(mincol_lim, maxcol_lim))+
+        ggtitle(paste0(titel," - bin probability error"))
+        ggsave(paste0("./out/",titel,"_p.pdf"))
+    """
+    norm(pest-ptrue)
+end
 
-function contourplot(weights, truedatagen; titel="Contour plot", gridN=200,binx=binx,biny=biny) # weights correspond to density in bins
+"""
+Compare estimated piecewise constant probability density function, specified via
+dweights, to true density computed using treudatagen
+"""
+function plotting_d(dweights,truedatagen,binx,biny, titel;gridN=200,mincol_lim=-1,maxcol_lim=1)
+    # Asses error by binning for true pdf
     minx, maxx = extrema(binx)
     miny, maxy = extrema(biny)
     gridx = range(minx,stop=maxx-0.001,length=gridN)
     gridy = range(miny,stop=maxy-0.001,length=gridN)
-    # gridF =[cdf_(gridx[i],gridy[j],weights,binx,biny) for j in 1:gridN for i in 1:gridN]
-    # gridFᵒ = [Ftrue(gridx[i],gridy[j],truedatagen)  for j in 1:gridN for i in 1:gridN]
 
-    gridF =[cdf_(gridx[i],gridy[j],weights,binx,biny)  for i in 1:gridN  for j in 1:gridN]
-    gridFᵒ = [Ftrue(gridx[i],gridy[j],truedatagen)   for i in 1:gridN  for j in 1:gridN] # this works fine
+    dest = dens_piecewise_constant(gridx,gridy,binx,biny,dweights)
+    dtrue = denstrue(gridx,gridy,truedatagen)
 
-    xxgrid = repeat(gridx,inner=gridN)
-    yygrid = repeat(gridy,outer=gridN)
-    leveldf = DataFrame(x=xxgrid,y=yygrid, posteriormean=gridF, datagenerating=gridFᵒ)
-
-    @rput leveldf
-    @rput titel
-    R"""
-        library(ggplot2)
-        library(tidyverse)
-        b<- c(0.01,0.05,seq(0.1:1.0,by=0.1))
-
-        d <- leveldf %>% gather(key= curveID, value=z, posteriormean, datagenerating)
-        d %>% ggplot(aes(x=x,y=y,z=z,colour=curveID,linetype=curveID)) + stat_contour(breaks=b, size=1.5) +
-        theme(legend.position="bottom")+ggtitle(titel) #+theme_minimal()
-        ggsave(paste0(titel,".pdf"))
-    """
-end
-
-function plotting(pweights,truedatagen,binarea,binx,biny,titel1,titel2)
-    m = length(binx)-1 ; n = length(biny)-1
-    xx = repeat(binx[2:end],inner=n)
-    yy = repeat(biny[2:end],outer=m)
-    wtrue = binprobtrue(binx,biny,truedatagen)
-    d = DataFrame(w=pweights, wtrue=wtrue, x=xx, y=yy)
-    CSV.write("./out/"*titel1*".csv",d)
+    d = DataFrame(dest=dest,dtrue=dtrue, x =repeat(gridx,inner=gridN), y=repeat(gridy,outer=gridN))
+    CSV.write("./out/"*titel*"density.csv",d)
     @rput d
-    @rput titel1
-    @rput titel2
+    @rput titel
+    @rput mincol_lim
+    @rput maxcol_lim
     R"""
         library(ggplot2)
         library(tidyverse)
-        ggplot(data=d,aes(x, y, fill=w-wtrue)) + geom_tile() + ggtitle(titel1)
-        ggsave(paste0(titel1,".pdf"))
+        ggplot(data=d,aes(x, y, fill=dest-dtrue)) + geom_tile() +
+                scale_fill_gradient2(limits=c(mincol_lim, maxcol_lim))+
+        ggtitle(paste0(titel," - density error"))
+        ggsave(paste0("./out/",titel,"_d.pdf"))
     """
-    contourplot(vec2mat(pweights/binarea,m,n), truedatagen;titel=titel2)
+
+    R"""
+        library(ggplot2)
+        library(tidyverse)
+        ggplot(data=d,aes(x, y, fill=dtrue)) + geom_tile() +
+            scale_fill_gradient2(limits=c(mincol_lim, maxcol_lim))+
+        ggtitle("Data generating density")
+        ggsave("./out/truedensitydensity.pdf")
+    """
+
+    norm(dest-dtrue)
 end

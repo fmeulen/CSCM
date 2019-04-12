@@ -14,14 +14,14 @@ global fulldata = Vector{obs}(undef,N)  # adjust at each iteration
 for k in 1:N
     it = indbin(t[k],binx)
     if k in ind_yknown
-        ix = sample(1:it)
+        ix = rand(1:it)
         iy = indbin(y[k],biny)
         obstype="yknown"
         area = [ min(binx[i+1],t[k])-binx[i] for i in 1:it]
         indpairs = 0
     else
-        ix = sample(it:m)
-        iy = sample(1:n)
+        ix = rand(it:m)
+        iy = rand(1:n)
         obstype="yunknown"
         area = [(binx[i+1]-max(t[k],binx[i])) * (biny[j+1] - biny[j])  for i in it:m for j in 1:n]
         indpairs =[ [i,j] for i in it:m for j in 1:n]
@@ -70,7 +70,7 @@ end
 # compute average of weights
 θpostmean_dir = mat2vec(mean(θ))
 
-plotting(θpostmean_dir,truedatagen,binarea,binx,biny,"Dirichlet","contourDirichlet")
+
 
 traceplotswanted = false
 if traceplotswanted
