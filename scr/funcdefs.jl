@@ -130,13 +130,17 @@ end
 """
 Compare bin probabilities in pweights to true bin probabilities computed using treudatagen
 """
-function plotting_p(pest,truedatagen,binx,biny,titel;mincol_lim=-1,maxcol_lim=1)
+function prep_plotting_p(pest,truedatagen,binx,biny,titel)
     m = length(binx)-1 ; n = length(biny)-1
     xx = repeat(binx[2:end],inner=n)
     yy = repeat(biny[2:end],outer=m)
     ptrue = binprobtrue(binx,biny,truedatagen)  # true bin probabilities
     d = DataFrame(pest=pest, ptrue=ptrue, x=xx, y=yy)
     CSV.write("./out/"*titel*"binprob.csv",d)
+    d
+end
+
+function plotting_p(d,titel;mincol_lim=-1,maxcol_lim=1)
     @rput d
     @rput titel
     @rput mincol_lim
@@ -149,14 +153,14 @@ function plotting_p(pest,truedatagen,binx,biny,titel;mincol_lim=-1,maxcol_lim=1)
         ggtitle(paste0(titel," - bin probability error"))
         ggsave(paste0("./out/",titel,"_p.pdf"))
     """
-    norm(pest-ptrue)
+    norm(d[:pest]-d[:ptrue])
 end
 
 """
 Compare estimated piecewise constant probability density function, specified via
 dweights, to true density computed using treudatagen
 """
-function plotting_d(dweights,truedatagen,binx,biny, titel;gridN=200,mincol_lim=-1,maxcol_lim=1)
+function prep_plotting_d(dweights,truedatagen,binx,biny, titel;gridN=200)
     # Asses error by binning for true pdf
     minx, maxx = extrema(binx)
     miny, maxy = extrema(biny)
@@ -168,6 +172,10 @@ function plotting_d(dweights,truedatagen,binx,biny, titel;gridN=200,mincol_lim=-
 
     d = DataFrame(dest=dest,dtrue=dtrue, x =repeat(gridx,inner=gridN), y=repeat(gridy,outer=gridN))
     CSV.write("./out/"*titel*"density.csv",d)
+    d
+end
+
+function plotting_d(d, titel;mincol_lim=-1,maxcol_lim=1)
     @rput d
     @rput titel
     @rput mincol_lim
@@ -190,5 +198,5 @@ function plotting_d(dweights,truedatagen,binx,biny, titel;gridN=200,mincol_lim=-
         ggsave("./out/truedensitydensity.pdf")
     """
 
-    norm(dest-dtrue)
+    norm(d[:dest]-d[:dtrue])
 end

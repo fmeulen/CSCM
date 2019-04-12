@@ -10,7 +10,7 @@ include("funcdefs.jl")
 Random.seed!(1234)
 
 # Sample data (available data consist of (ind_yknown, ind_yunknown, t, y[ind_yknown])
-truedatagen =["uniform","x+y","(3/8)(x2+y)"][1]
+truedatagen =["uniform","x+y","(3/8)(x2+y)"][3]
 N = 500 # sample size
 x, y, t, ind_yknown, ind_yunknown = gendata(truedatagen, N)
 
@@ -22,7 +22,7 @@ minx = 0.0; miny = 0.0; maxx = 1.0
 m = 10
 
 if truedatagen=="(3/8)(x2+y)"
-    n = 2m
+    n = m
     maxy = 2.0
 else
     n = m
@@ -38,8 +38,8 @@ BI = 1 #nr of burnin iterations
 
 include("dirichletprior.jl")
 
-samplers=[HMC(100, 0.1, 10) HMC(ITER, 0.1, 2)  DynamicNUTS(100)  PG(10,1000) SGLD(1000, 0.5) SGHMC(100,0.01,0.01)]
-gg = samplers[2]
+samplers=[HMC(100, 0.1, 3) HMC(ITER, 0.1, 2)  DynamicNUTS(100)  PG(10,1000) SGLD(1000, 0.5) SGHMC(100,0.01,0.01)]
+gg = samplers[1]
 #include("graphlaplacianprior.jl")
 include("graphlaplacianprior.jl")
 
