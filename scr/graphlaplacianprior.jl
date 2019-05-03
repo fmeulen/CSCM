@@ -43,3 +43,14 @@ Hpostmean_gl = chn_gl.value[BI:end,1:m*n,1]
 
 plotly(); plot(chn_gl)
 describe(chn_gl)
+
+trace_df = DataFrame(th1=θiterates_gl[:,1],th2=θiterates_gl[:,2],th10=θiterates_gl[:,10],
+th11=θiterates_gl[:,11])
+nr, nc = size(trace_df)
+@rput trace_df
+@rput nr; @rput nc
+R"""
+library(tidyverse)
+trace_df %>% gather(value=value, key=coefficient) %>% mutate(iterate=rep(1:nr,nc)) %>%
+ggplot(aes(x=iterate,y=value)) + geom_path() + facet_wrap(~coefficient,scales='free')
+"""
