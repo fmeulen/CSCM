@@ -37,8 +37,10 @@ global θ = Vector{Matrix{Float64}}(undef,ITER) # save in each iteration
 ####### Data augmentation algorithm
 for iter in 1:ITER
     # Update weights
-    #θ[iter] = reshape( rand(Dirichlet(vec(counts+priorθ))) , m, n)
     θ[iter] = vec2mat( rand(Dirichlet(vec(counts+priorθ))) , m, n)
+
+
+    #dirichletfull_inference(counts,θ[1],L,gg)
 
     # Update latent data
     for k in 1:N#  sample(1:n, div(n,2))#1:n
@@ -68,7 +70,7 @@ for iter in 1:ITER
 end
 
 # compute average of weights
-θpostmean_dir = mat2vec(mean(θ))
+θpm_dir = mat2vec(mean(θ[BI:ITER]))
 
 
 

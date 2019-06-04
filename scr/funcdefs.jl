@@ -19,6 +19,66 @@ indbin(x_,binx) = (x_>=binx[end]) ? error("bin does not exist") : findfirst(x ->
 
 graphlaplacian(m,n) = Matrix(lap(grid2(m,n))) + I/(m*n)^2
 
+
+mutable struct censoringinfo
+    fracarea  # keep track of fraction of bin areas
+    ind   # corresponding indices
+end
+
+
+function construct_censoringinfo(t,y,binx,biny,z,ind_yknown)
+    m = length(binx) - 1
+    n = length(biny) - 1
+    N = length(t)
+    z = zeros(Int64,N)
+    z[ind_yknown] .= 1 # so if y is known z=1
+    ci = Vector{censoringinfo}(undef,N)
+    for k in 1:N
+        it = indbin(t[k],binx)
+        if z[k]==1
+            iy = indbin(y[k],biny)
+            area = [ min(binx[i+1],t[k])-binx[i] for i in 1:it] * (biny[iy+1] - biny[iy])
+            ind = [iy + ℓ*n for ℓ in 0:(it-1)]
+        else
+            area = [(binx[i+1]-max(t[k],binx[i])) * (biny[j+1] - biny[j])  for i in it:m for j in 1:n]
+            ind = ((it-1)*n+1):(m*n)
+        end
+        ci[k] = censoringinfo(area/binarea,ind)
+    end
+    ci
+end
+
+bernpar(θ,cik) = dot(θ[cik.ind], cik.fracarea)
+
+@model GraphLaplacianModel(z,ci,L) = begin
+    τ ~ InverseGamma(.1,.1)
+    H ~ MvNormalCanon(L*τ)
+    θ = invlogit(H)
+    for k in eachindex(z)
+        z[k] ~ Bernoulli(bernpar(θ,ci[k]))
+    end
+end
+
+@model DirichletFullModel(z,L) = begin
+    τ ~ InverseGamma(.1,.1)
+    H ~ MvNormalCanon(L*τ)
+    θ = invlogit(H)
+    for k in ind
+        z[k] ~ Bernoulli(θ[k])
+    end
+end
+
+function graphlaplacian_inference(ci, L, gg)
+    model_gl = GraphLaplacianModel(ones(Int8,length(ci)),ci,L)
+    Turing.sample(model_gl, gg)  # here also possible to use Gibbs sampling where tau and H are iteratively updated.
+end
+
+function dirichletfull_inference(counts,θ,L,gg)
+    model_gl = DirichletFullModel(counts,θ,L)
+    Turing.sample(model_gl, gg)  # here also possible to use Gibbs sampling where tau and H are iteratively updated.
+end
+
+
 """
 Compute inverse graph Laplacian, with power parameter (ρ) fixed to one.
 """
@@ -175,69 +235,8 @@ function dens_piecewise_constant(gridx,gridy,binx,biny,dweights)
     out
 end
 
-
-"""
-Compare bin probabilities in pweights to true bin probabilities computed using treudatagen
-"""
-function prep_plotting_p(pest,truedatagen,binx,biny,titel,θ)
-    m = length(binx)-1 ; n = length(biny)-1
-    xx = repeat(binx[2:end],inner=n)
-    yy = repeat(biny[2:end],outer=m)
-    ptrue = binprobtrue(binx,biny,truedatagen,θ)  # true bin probabilities
-    d = DataFrame(pest=pest, ptrue=ptrue, x=xx, y=yy)
-    CSV.write("./out/"*titel*"binprob.csv",d)
-    d
-end
-
-function plotting_p(d,titel;mincol_lim=-1,maxcol_lim=1)
+function plot_truedensity(d)
     @rput d
-    @rput titel
-    @rput mincol_lim
-    @rput maxcol_lim
-    R"""
-        library(ggplot2)
-        library(tidyverse)
-        ggplot(data=d,aes(x, y, fill=pest-ptrue)) + geom_tile() +
-        scale_fill_gradient2(limits=c(mincol_lim, maxcol_lim))+
-        ggtitle(paste0(titel," - bin probability error"))
-        ggsave(paste0("./out/",titel,"_p.pdf"))
-    """
-    norm(d[:pest]-d[:ptrue])
-end
-
-"""
-Compare estimated piecewise constant probability density function, specified via
-dweights, to true density computed using treudatagen
-"""
-function prep_plotting_d(dweights,truedatagen,binx,biny, titel,θ ;gridN=200)
-    # Asses error by binning for true pdf
-    minx, maxx = extrema(binx)
-    miny, maxy = extrema(biny)
-    gridx = range(minx,stop=maxx-0.001,length=gridN)
-    gridy = range(miny,stop=maxy-0.001,length=gridN)
-
-    dest = dens_piecewise_constant(gridx,gridy,binx,biny,dweights)
-    dtrue = denstrue(gridx,gridy,truedatagen,θ)
-
-    d = DataFrame(dest=dest,dtrue=dtrue, x =repeat(gridx,inner=gridN), y=repeat(gridy,outer=gridN))
-    CSV.write("./out/"*titel*"density.csv",d)
-    d
-end
-
-function plotting_d(d, titel;mincol_lim=-1,maxcol_lim=1)
-    @rput d
-    @rput titel
-    @rput mincol_lim
-    @rput maxcol_lim
-    R"""
-        library(ggplot2)
-        library(tidyverse)
-        ggplot(data=d,aes(x, y, fill=dest-dtrue)) + geom_tile() +
-                scale_fill_gradient2(limits=c(mincol_lim, maxcol_lim))+
-        ggtitle(paste0(titel," - density error"))
-        ggsave(paste0("./out/",titel,"_d.pdf"))
-    """
-
     R"""
         library(ggplot2)
         library(tidyverse)
@@ -245,17 +244,17 @@ function plotting_d(d, titel;mincol_lim=-1,maxcol_lim=1)
             geom_tile(aes(fill=dtrue))+
             #stat_contour(bins=6,aes(x,y,z=dtrue), color="black", size=0.6)+
             scale_fill_gradient2(low="white", high="black")#+geom_contour(binwidth = 0.5)
-            ggtitle("Data generating density")
+            ggtitle("Data generating density") +
+             theme_light()
 
-        ggsave("./out/truedensitydensity.pdf")
+        ggsave("./out/truedensitydensity.pdf",width=4, height=4)
 
         # geom_contour(binwidth = 0.1) +
         #     #scale_fill_gradient2(limits=c(mincol_lim, maxcol_lim))+
         #     #scale_fill_gradient2()+
     """
-
-    norm(d[:dest]-d[:dtrue])
 end
+
 
 # Example with data from GaussianCopula copula
 
@@ -295,8 +294,75 @@ function Base.rand(fam::GaussianCopula,n::Integer)
     # res
 end
 
-# x=rand(GaussianCopula(2.0),5000)
-# @rput x
-# R"""
-#     plot(x[1,],x[2,])
-# """
+
+
+
+function prep_plotting_p(pest_dir,pest_gl,truedatagen,binx,biny,titel,θ)
+    m = length(binx)-1 ; n = length(biny)-1
+    xx = repeat(binx[2:end],inner=n)
+    yy = repeat(biny[2:end],outer=m)
+    ptrue = binprobtrue(binx,biny,truedatagen,θ)  # true bin probabilities
+    d = DataFrame(pest=vcat(pest_dir,pest_gl), ptrue=repeat(ptrue,2),
+        x=repeat(xx,2), y=repeat(yy,2),
+        type = repeat(["Dirichlet", "Graph Laplacian"],inner=m*n))
+    CSV.write("./out/"*titel*"binprob.csv",d)
+    d
+end
+
+function plotting_p(d)
+    @rput d
+    R"""
+        library(ggplot2)
+        library(tidyverse)
+        d <- d %>% mutate(error=pest-ptrue)
+        ggplot(data=d,aes(x, y, fill=error)) + geom_tile() +
+        facet_wrap(~type) +
+        scale_fill_gradient2()+xlab("")+ylab("")+
+                 theme_light()+ coord_fixed()
+        ggsave("./out/binprobs.pdf",width=8.2, height=4)
+        errs = d %>% group_by(type) %>%   summarise(error=sqrt(sum(error^2)))
+    """
+    @rget errs
+    errs
+end
+
+"""
+Compare estimated piecewise constant probability density function, specified via
+dweights, to true density computed using treudatagen
+"""
+function prep_plotting_d(dweights_dir,dweights_gl,truedatagen,binx,biny,θ ;gridN=200)
+    # Asses error by binning for true pdf
+    minx, maxx = extrema(binx)
+    miny, maxy = extrema(biny)
+    gridx = range(minx,stop=maxx-0.001,length=gridN)
+    gridy = range(miny,stop=maxy-0.001,length=gridN)
+
+    d_dir = dens_piecewise_constant(gridx,gridy,binx,biny,dweights_dir)
+    d_gl = dens_piecewise_constant(gridx,gridy,binx,biny,dweights_gl)
+    dtrue = denstrue(gridx,gridy,truedatagen,θ)
+    x =repeat(gridx,inner=gridN)
+    y=repeat(gridy,outer=gridN)
+    d = DataFrame(dest=vcat(d_dir,d_gl),dtrue=repeat(dtrue,2),
+            x=repeat(x,2), y=repeat(y,2),
+            type = repeat(["Dirichlet", "Graph Laplacian"],inner=length(d_dir)))
+
+    CSV.write("./out/density.csv",d)
+    d
+end
+
+function plotting_d(d)
+    @rput d
+    R"""
+        library(ggplot2)
+        library(tidyverse)
+        d <- d %>% mutate(error=dest-dtrue)  #error is estimted - true
+        ggplot(data=d,aes(x, y, fill=error)) + geom_tile() +
+        facet_wrap(~type) +
+        scale_fill_gradient2()+xlab("")+ylab("")+
+                 theme_light()+ coord_fixed()
+        ggsave("./out/dens.pdf",width=8.2, height=4)
+        errs = d %>% group_by(type) %>%   summarise(error=sqrt(sum(error^2)))
+    """
+    @rget errs
+    errs
+end
