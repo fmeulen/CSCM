@@ -54,4 +54,5 @@ sp = samplers[1]
 @time iterates_gl, Hiterates_gl, θiterates_gl, θpostmean_gl = sample_graphlap(t,ind_yknown, y,binx,biny, BI_GL; sampler=sp)
 
 # ensure that there is a directory called "out" in the working directory
+make_traceplots = false
 include("write_info.jl")

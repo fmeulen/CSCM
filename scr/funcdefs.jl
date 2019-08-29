@@ -307,11 +307,11 @@ function plotting(θpostmean_dir,truedatagen,binx,biny,binarea,θcopula, N)
     minl, maxl = extrema(  hcat(df_error_dir_d.dest-df_error_dir_d.dtrue,df_error_gl_d.dest-df_error_gl_d.dtrue))
     error_dir_d = plotting_d(df_error_dir_d, "Dirichlet";mincol_lim=minl,maxcol_lim=maxl)
     error_gl_d = plotting_d(df_error_gl_d, "graphLaplacian";mincol_lim=minl,maxcol_lim=maxl)
-    error_dir_p,  error_gl_p
+    error_dir_p,  error_gl_p, error_dir_d,  error_gl_d
 end
 
 
-#----------- code for grapch laplacian priorscale
+#----------- code for graph laplacian priorscale
 """
 Compute inverse graph Laplacian, with power parameter (ρ) fixed to one.
 """
