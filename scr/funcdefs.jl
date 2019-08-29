@@ -20,77 +20,6 @@ indbin(x_,binx) = (x_>=binx[end]) ? error("bin does not exist") : findfirst(x ->
 graphlaplacian(m,n) = Matrix(lap(grid2(m,n))) + I/(m*n)^2
 
 
-mutable struct censoringinfo
-    fracarea  # keep track of fraction of bin areas
-    ind   # corresponding indices
-end
-
-
-function construct_censoringinfo(t,y,binx,biny,z,ind_yknown)
-    m = length(binx) - 1
-    n = length(biny) - 1
-    N = length(t)
-    z = zeros(Int64,N)
-    z[ind_yknown] .= 1 # so if y is known z=1
-    ci = Vector{censoringinfo}(undef,N)
-    for k in 1:N
-        it = indbin(t[k],binx)
-        if z[k]==1
-            iy = indbin(y[k],biny)
-            area = [ min(binx[i+1],t[k])-binx[i] for i in 1:it] * (biny[iy+1] - biny[iy])
-            ind = [iy + ℓ*n for ℓ in 0:(it-1)]
-        else
-            area = [(binx[i+1]-max(t[k],binx[i])) * (biny[j+1] - biny[j])  for i in it:m for j in 1:n]
-            ind = ((it-1)*n+1):(m*n)
-        end
-        ci[k] = censoringinfo(area/binarea,ind)
-    end
-    ci
-end
-
-bernpar(θ,cik) = dot(θ[cik.ind], cik.fracarea)
-
-@model GraphLaplacianModel(z,ci,L) = begin
-    τ ~ InverseGamma(.1,.1)
-    H ~ MvNormalCanon(L*τ)
-    θ = invlogit(H)
-    for k in eachindex(z)
-        z[k] ~ Bernoulli(bernpar(θ,ci[k]))
-    end
-end
-
-@model DirichletFullModel(z,L) = begin
-    τ ~ InverseGamma(.1,.1)
-    H ~ MvNormalCanon(L*τ)
-    θ = invlogit(H)
-    for k in ind
-        z[k] ~ Bernoulli(θ[k])
-    end
-end
-
-function graphlaplacian_inference(ci, L, gg)
-    model_gl = GraphLaplacianModel(ones(Int8,length(ci)),ci,L)
-    Turing.sample(model_gl, gg)  # here also possible to use Gibbs sampling where tau and H are iteratively updated.
-end
-
-function dirichletfull_inference(counts,θ,L,gg)
-    model_gl = DirichletFullModel(counts,θ,L)
-    Turing.sample(model_gl, gg)  # here also possible to use Gibbs sampling where tau and H are iteratively updated.
-end
-
-
-"""
-Compute inverse graph Laplacian, with power parameter (ρ) fixed to one.
-"""
-function invgraphlaplacian(m,n,τ) # order columnwise
-    kol1 = [2; fill(3,n-2); 2]
-    diagD = vcat(kol1, repeat(kol1 .+ 1,m-2),kol1)
-    k = m * n
-    L = diagm(0=>diagD .+ 1/k^2, 1=> fill(-1,k-1), -1 => fill(-1,k-1))   # graph Laplacian matrix
-    Σ = τ^(-1) * inv(L)
-    (Σ+Σ')/2
-end
-
 """
 Generate data for current status continuous mark model.
 """
@@ -235,26 +164,86 @@ function dens_piecewise_constant(gridx,gridy,binx,biny,dweights)
     out
 end
 
-function plot_truedensity(d)
+
+"""
+Compare bin probabilities in pweights to true bin probabilities computed using treudatagen
+"""
+function prep_plotting_p(pest,truedatagen,binx,biny,titel,θ)
+    m = length(binx)-1 ; n = length(biny)-1
+    xx = repeat(binx[2:end],inner=n)
+    yy = repeat(biny[2:end],outer=m)
+    ptrue = binprobtrue(binx,biny,truedatagen,θ)  # true bin probabilities
+    d = DataFrame(pest=pest, ptrue=ptrue, x=xx, y=yy)
+    CSV.write("./out/"*titel*"binprob.csv",d)
+    d
+end
+
+function plotting_p(d,titel;mincol_lim=-1,maxcol_lim=1)
     @rput d
+    @rput titel
+    @rput mincol_lim
+    @rput maxcol_lim
     R"""
         library(ggplot2)
         library(tidyverse)
+        theme_set(theme_light())
+        ggplot(data=d,aes(x, y, fill=pest-ptrue)) + geom_tile() +
+        scale_fill_gradient2(limits=c(mincol_lim, maxcol_lim))+
+        ggtitle(paste0(titel," - bin probability error"))
+        ggsave(paste0("./out/",titel,"_p.pdf"))
+    """
+    norm(d[:pest]-d[:ptrue])
+end
+
+"""
+Compare estimated piecewise constant probability density function, specified via
+dweights, to true density computed using treudatagen
+"""
+function prep_plotting_d(dweights,truedatagen,binx,biny, titel,θ ;gridN=200)
+    # Asses error by binning for true pdf
+    minx, maxx = extrema(binx)
+    miny, maxy = extrema(biny)
+    gridx = range(minx,stop=maxx-0.001,length=gridN)
+    gridy = range(miny,stop=maxy-0.001,length=gridN)
+
+    dest = dens_piecewise_constant(gridx,gridy,binx,biny,dweights)
+    dtrue = denstrue(gridx,gridy,truedatagen,θ)
+
+    d = DataFrame(dest=dest,dtrue=dtrue, x =repeat(gridx,inner=gridN), y=repeat(gridy,outer=gridN))
+    CSV.write("./out/"*titel*"density.csv",d)
+    d
+end
+
+function plotting_d(d, titel;mincol_lim=-1,maxcol_lim=1)
+    @rput d
+    @rput titel
+    @rput mincol_lim
+    @rput maxcol_lim
+    R"""
+        library(ggplot2)
+        library(tidyverse)
+        theme_set(theme_light())
+        ggplot(data=d,aes(x, y, fill=dest-dtrue)) + geom_tile() +
+                scale_fill_gradient2(limits=c(mincol_lim, maxcol_lim))+
+        ggtitle(paste0(titel," - density error"))
+        ggsave(paste0("./out/",titel,"_d.pdf"))
+    """
+
+    R"""
+        library(ggplot2)
+        library(tidyverse)
+        theme_set(theme_light())
         ggplot(data=d,aes(x, y,z=dtrue)) +
             geom_tile(aes(fill=dtrue))+
             #stat_contour(bins=6,aes(x,y,z=dtrue), color="black", size=0.6)+
             scale_fill_gradient2(low="white", high="black")#+geom_contour(binwidth = 0.5)
-            ggtitle("Data generating density") +
-             theme_light()
+            ggtitle("Data generating density")
 
-        ggsave("./out/truedensitydensity.pdf",width=4, height=4)
-
-        # geom_contour(binwidth = 0.1) +
-        #     #scale_fill_gradient2(limits=c(mincol_lim, maxcol_lim))+
-        #     #scale_fill_gradient2()+
+        ggsave("./out/truedensitydensity.pdf")
     """
-end
 
+    norm(d[:dest]-d[:dtrue])
+end
 
 # Example with data from GaussianCopula copula
 
@@ -294,75 +283,188 @@ function Base.rand(fam::GaussianCopula,n::Integer)
     # res
 end
 
+# x=rand(GaussianCopula(2.0),5000)
+# @rput x
+# R"""
+#     plot(x[1,],x[2,])
+# """
 
 
 
-function prep_plotting_p(pest_dir,pest_gl,truedatagen,binx,biny,titel,θ)
-    m = length(binx)-1 ; n = length(biny)-1
-    xx = repeat(binx[2:end],inner=n)
-    yy = repeat(biny[2:end],outer=m)
-    ptrue = binprobtrue(binx,biny,truedatagen,θ)  # true bin probabilities
-    d = DataFrame(pest=vcat(pest_dir,pest_gl), ptrue=repeat(ptrue,2),
-        x=repeat(xx,2), y=repeat(yy,2),
-        type = repeat(["Dirichlet", "Graph Laplacian"],inner=m*n))
-    CSV.write("./out/"*titel*"binprob.csv",d)
-    d
+
+function plotting(θpostmean_dir,truedatagen,binx,biny,binarea,θcopula, N)
+    df_error_dir_p = prep_plotting_p(θpostmean_dir,truedatagen,binx,biny,"Dirichlet",θcopula)
+    df_error_gl_p = prep_plotting_p(θpostmean_gl,truedatagen,binx,biny,"graphLaplacian",θcopula)
+    # set colour limits
+    minl, maxl = extrema(  hcat(df_error_dir_p.pest-df_error_dir_p.ptrue,df_error_gl_p.pest-df_error_gl_p.ptrue))
+    # make plots
+    error_dir_p = plotting_p(df_error_dir_p,"Dirichlet";mincol_lim=minl,maxcol_lim=maxl)
+    error_gl_p = plotting_p(df_error_gl_p,"graphLaplacian";mincol_lim=minl,maxcol_lim=maxl)
+
+    # similarly for densities
+    df_error_dir_d = prep_plotting_d(θpostmean_dir/binarea,truedatagen,binx,biny, "Dirichlet",θcopula)
+    df_error_gl_d = prep_plotting_d(θpostmean_gl/binarea,truedatagen,binx,biny, "graphLaplacian",θcopula)
+    minl, maxl = extrema(  hcat(df_error_dir_d.dest-df_error_dir_d.dtrue,df_error_gl_d.dest-df_error_gl_d.dtrue))
+    error_dir_d = plotting_d(df_error_dir_d, "Dirichlet";mincol_lim=minl,maxcol_lim=maxl)
+    error_gl_d = plotting_d(df_error_gl_d, "graphLaplacian";mincol_lim=minl,maxcol_lim=maxl)
+    error_dir_p,  error_gl_p
 end
 
-function plotting_p(d)
-    @rput d
-    R"""
-        library(ggplot2)
-        library(tidyverse)
-        d <- d %>% mutate(error=pest-ptrue)
-        ggplot(data=d,aes(x, y, fill=error)) + geom_tile() +
-        facet_wrap(~type) +
-        scale_fill_gradient2()+xlab("")+ylab("")+
-                 theme_light()+ coord_fixed()
-        ggsave("./out/binprobs.pdf",width=8.2, height=4)
-        errs = d %>% group_by(type) %>%   summarise(error=sqrt(sum(error^2)))
-    """
-    @rget errs
-    errs
+
+#----------- code for grapch laplacian priorscale
+"""
+Compute inverse graph Laplacian, with power parameter (ρ) fixed to one.
+"""
+function invgraphlaplacian(m,n,τ) # order columnwise
+    kol1 = [2; fill(3,n-2); 2]
+    diagD = vcat(kol1, repeat(kol1 .+ 1,m-2),kol1)
+    k = m * n
+    L = diagm(0=>diagD .+ 1/k^2, 1=> fill(-1,k-1), -1 => fill(-1,k-1))   # graph Laplacian matrix
+    Σ = τ^(-1) * inv(L)
+    (Σ+Σ')/2
+end
+
+mutable struct censoringinfo
+    fracarea  # keep track of fraction of bin areas
+    ind   # corresponding indices
+end
+
+# Turing hierarchical model
+@model GraphLaplacianModel(z,ci,L) = begin
+    τ ~ InverseGamma(.1,.1)
+    H ~ MvNormalCanon(L*τ)
+    θ = invlogit(H)
+    for k in eachindex(z)
+        z[k] ~ Bernoulli(sum(θ[ci[k].ind].* ci[k].fracarea))
+    end
 end
 
 """
-Compare estimated piecewise constant probability density function, specified via
-dweights, to true density computed using treudatagen
+    t: observed times
+    ind_yknown: vector of indices that correspond to those times in t where y is observed
+    y: vector of observed marks (elements corresponding to times where the mark y is not observed can be specified arbitrarily,
+    for example z zero)
+    binx: bin grid in x direction
+    biny: bin grid in y direction
+    BI: number of samples considered burnIn
+    sampler: sampler
+
+    Returns:     iterates, Hiterates, θiterates, θpostmean
+    Here 'iterates' contains all iterates, whereas for
+    Hiterates, θiterates, θpostmean burnin samples have been removed
 """
-function prep_plotting_d(dweights_dir,dweights_gl,truedatagen,binx,biny,θ ;gridN=200)
-    # Asses error by binning for true pdf
-    minx, maxx = extrema(binx)
-    miny, maxy = extrema(biny)
-    gridx = range(minx,stop=maxx-0.001,length=gridN)
-    gridy = range(miny,stop=maxy-0.001,length=gridN)
+function sample_graphlap(t,ind_yknown, y,binx,biny, BI; sampler=HMC(10, 0.1, 5))
+    binarea = (binx[2]-binx[1]) * (biny[2]-biny[1]) # the same for all bins
+    NSAMPLE = length(t)
+    zz = zeros(Int64,NSAMPLE)
+    zz[ind_yknown] .= 1 # so if y is known z=1
+    m = length(binx) - 1
+    n = length(biny) - 1
+    ci = Vector{censoringinfo}(undef,NSAMPLE)
 
-    d_dir = dens_piecewise_constant(gridx,gridy,binx,biny,dweights_dir)
-    d_gl = dens_piecewise_constant(gridx,gridy,binx,biny,dweights_gl)
-    dtrue = denstrue(gridx,gridy,truedatagen,θ)
-    x =repeat(gridx,inner=gridN)
-    y=repeat(gridy,outer=gridN)
-    d = DataFrame(dest=vcat(d_dir,d_gl),dtrue=repeat(dtrue,2),
-            x=repeat(x,2), y=repeat(y,2),
-            type = repeat(["Dirichlet", "Graph Laplacian"],inner=length(d_dir)))
+    for k in 1:NSAMPLE
+        it = indbin(t[k],binx)
+        if zz[k]==1
+            iy = indbin(y[k],biny)
+            area = [ min(binx[i+1],t[k])-binx[i] for i in 1:it] * (biny[iy+1] - biny[iy])
+            ind = [iy + ℓ*n for ℓ in 0:(it-1)]
+        else
+            area = [(binx[i+1]-max(t[k],binx[i])) * (biny[j+1] - biny[j])  for i in it:m for j in 1:n]
+            ind = ((it-1)*n+1):(m*n)
+        end
+        ci[k] = censoringinfo(area/binarea,ind)
+    end
 
-    CSV.write("./out/density.csv",d)
-    d
+    L = graphlaplacian(m,n) # graph Laplacian with τ=1
+    model = GraphLaplacianModel(ones(Int8,NSAMPLE),ci,L)
+    chn = Turing.sample(model, sampler)
+    # here also possible to use Gibbs sampling where tau and H are iteratively updated.
+
+    iterates = chn.value[1:end,:,1]
+    Hiterates = chn.value[BI:end,1:m*n,1]
+    θiterates = mapslices(invlogit, Hiterates,dims=2) # transform iterates back to θ
+    θpostmean = vec(mean(θiterates,dims=1))
+    iterates, Hiterates, θiterates, θpostmean
+end
+#------------------------------------------------
+
+
+# functions for Dirichlet prior
+
+mutable struct obs
+    t::Float64
+    ix::Int64
+    iy::Int64
+    it::Int64
+    obstype::String
+    area  # keep track of bin areas or lengths (in case y is known), needed for updating latent data
+    indpairs  # only needed for case y is unknown
 end
 
-function plotting_d(d)
-    @rput d
-    R"""
-        library(ggplot2)
-        library(tidyverse)
-        d <- d %>% mutate(error=dest-dtrue)  #error is estimted - true
-        ggplot(data=d,aes(x, y, fill=error)) + geom_tile() +
-        facet_wrap(~type) +
-        scale_fill_gradient2()+xlab("")+ylab("")+
-                 theme_light()+ coord_fixed()
-        ggsave("./out/dens.pdf",width=8.2, height=4)
-        errs = d %>% group_by(type) %>%   summarise(error=sqrt(sum(error^2)))
-    """
-    @rget errs
-    errs
+####### Initialise fulldata and counts
+
+function sample_dir(t,ind_yknown, y,binx,biny, BI, ITER; priorscale = 0.1)
+    m = length(binx) - 1
+    n = length(biny) - 1
+    counts = zeros(Int64,m,n)  # adjust at each iteration
+    fulldata = Vector{obs}(undef,NSAMPLE)  # adjust at each iteration
+
+    for k in 1:NSAMPLE
+        it = indbin(t[k],binx)
+        if k in ind_yknown
+            ix = rand(1:it)
+            iy = indbin(y[k],biny)
+            obstype="yknown"
+            area = [ min(binx[i+1],t[k])-binx[i] for i in 1:it]
+            indpairs = 0
+        else
+            ix = rand(it:m)
+            iy = rand(1:n)
+            obstype="yunknown"
+            area = [(binx[i+1]-max(t[k],binx[i])) * (biny[j+1] - biny[j])  for i in it:m for j in 1:n]
+            indpairs =[ [i,j] for i in it:m for j in 1:n]
+        end
+        counts[ix,iy] +=1
+        fulldata[k] = obs(t[k],ix,iy,it,obstype,area,indpairs)
+    end
+
+    priorθ = priorscale *  ones(m,n)
+
+    θ = Vector{Matrix{Float64}}(undef,ITER) # save in each iteration
+
+    ####### Data augmentation algorithm
+    for iter in 1:ITER
+        # Update weights
+        θ[iter] = vec2mat( rand(Dirichlet(vec(counts+priorθ))) , m, n)
+
+        # Update latent data
+        for k in 1:NSAMPLE#  sample(1:n, div(n,2))#1:n
+            ix_ = fulldata[k].ix;  iy_ = fulldata[k].iy; it_ = fulldata[k].it;
+            t_ = fulldata[k].t
+            obstype_ = fulldata[k].obstype
+            area_ = fulldata[k].area
+
+            counts[ix_,iy_] += -1
+            if obstype_=="yknown"  # update ix, consider i in 1..it_,  j=iy_
+                w = [θ[iter][i,iy_] for i in 1:it_] .*  area_
+                ind = wsample(1:it_,w)
+                counts[ind,iy_] += 1
+                fulldata[k].ix = ind
+            end
+            if obstype_=="yunknown"  # update ix and iy, consinder i in it_..nbinx, j in 1..nbiny
+                w = [θ[iter][i,j] for i in it_:m for j in 1:n] .* area_
+                ind = wsample(fulldata[k].indpairs,w)
+                counts[ind[1],ind[2]] += 1
+                fulldata[k].ix = ind[1]
+                fulldata[k].iy = ind[2]
+            end
+        end
+        if mod(iter,50)==0
+            println(iter)
+        end
+    end
+
+    # compute average of weights
+    θpostmean = mat2vec(mean(θ))
+    θ, θpostmean
 end
