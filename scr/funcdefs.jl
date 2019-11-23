@@ -5,7 +5,7 @@ Example usage
     vec2mat(mat2vec(a),2,3)-a
 """
 mat2vec(x) = vec(x) # colunmwise filling
-
+ 
 vec2mat(x,m,n) = reshape(x,m,n)
 
 sigmoid(x) = exp(x)/(1+exp(x))
