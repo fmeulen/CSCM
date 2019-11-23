@@ -14,7 +14,7 @@ println(workdir)
 cd(workdir)
 include("funcdefs.jl")
 Random.seed!(1234)
-
+ 
 #----------------------------------------------------------------------------------------------
 # Sample data (available data consist of (ind_yknown, ind_yunknown, t, y[ind_yknown])
 truedatagen =["uniform","x+y","(3/8)(x2+y)","GaussianCopula"][4]

@@ -7,7 +7,7 @@ yobserved = fill("yes",NSAMPLE)
 yobserved[ind_yunknown] .= "no"
 d = DataFrame(x=x,y=y,t=t,yobserved=yobserved)
 CSV.write("./out/observations.csv",d)
-
+ 
 #----------------------------------------------------------------------------------------------
 # write info to file
 facc = open("./out/info.txt","w")
