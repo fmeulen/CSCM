@@ -5,7 +5,7 @@ Example usage
     vec2mat(mat2vec(a),2,3)-a
 """
 mat2vec(x) = vec(x) # colunmwise filling
- 
+
 vec2mat(x,m,n) = reshape(x,m,n)
 
 sigmoid(x) = exp(x)/(1+exp(x))
@@ -353,7 +353,7 @@ end
     Here 'iterates' contains all iterates, whereas for
     Hiterates, θiterates, θpostmean burnin samples have been removed
 """
-function sample_graphlap(t,ind_yknown, y,binx,biny, BI; sampler=HMC(10, 0.1, 5))
+function sample_graphlap(t,ind_yknown, y,binx,biny, ITER_GL, BI; sp=HMC(0.1, 5))
     binarea = (binx[2]-binx[1]) * (biny[2]-biny[1]) # the same for all bins
     NSAMPLE = length(t)
     zz = zeros(Int64,NSAMPLE)
@@ -377,7 +377,7 @@ function sample_graphlap(t,ind_yknown, y,binx,biny, BI; sampler=HMC(10, 0.1, 5))
 
     L = graphlaplacian(m,n) # graph Laplacian with τ=1
     model = GraphLaplacianModel(ones(Int8,NSAMPLE),ci,L)
-    chn = Turing.sample(model, sampler)
+    chn = Turing.sample(model, sp, ITER_GL)
     # here also possible to use Gibbs sampling where tau and H are iteratively updated.
 
     iterates = chn.value[1:end,:,1]

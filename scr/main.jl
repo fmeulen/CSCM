@@ -14,7 +14,7 @@ println(workdir)
 cd(workdir)
 include("funcdefs.jl")
 Random.seed!(1234)
- 
+
 #----------------------------------------------------------------------------------------------
 # Sample data (available data consist of (ind_yknown, ind_yunknown, t, y[ind_yknown])
 truedatagen =["uniform","x+y","(3/8)(x2+y)","GaussianCopula"][4]
@@ -49,9 +49,10 @@ ps = 0.1
 @time iterates_dir, θpostmean_dir = sample_dir(t,ind_yknown, y,binx,biny, BI_DIR, ITER_DIR; priorscale = ps)
 
 # Graph Laplacian prior
-samplers=[HMC(ITER_GL, 0.1, 5) HMC(ITER_GL, 0.1, 2)  DynamicNUTS(ITER_GL)]
-sp = samplers[1]
-@time iterates_gl, Hiterates_gl, θiterates_gl, θpostmean_gl = sample_graphlap(t,ind_yknown, y,binx,biny, BI_GL; sampler=sp)
+samplers=[HMC(0.1, 5) HMC(0.1, 2)  DynamicNUTS()]
+sp = HMC(0.1, 5)#samplers[1]
+
+@time iterates_gl, Hiterates_gl, θiterates_gl, θpostmean_gl = sample_graphlap(t,ind_yknown, y,binx,biny, ITER_GL, BI_GL; sp=sp)
 
 # ensure that there is a directory called "out" in the working directory
 make_traceplots = false
