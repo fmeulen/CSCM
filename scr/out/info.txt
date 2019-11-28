@@ -1,16 +1,14 @@
-Data choice: GaussianCopula
+Data choice: x+y
 Sample size: 500
-Fraction in data with mark observed: 0.632
+Fraction in data with mark observed: 0.572
 
 Hyperpar Dirichlet prior: 0.1
 
-Sampler: HMC{Turing.Core.ForwardDiffAD{40},Any}(10, 0.1, 5, Set(Any[]))
-Number of iterations for Dirichlet prior: 1000
-Number of burnin iterations for Dirichlet prior: 100
+Sampler: HMC{Turing.Core.ForwardDiffAD{40},,AdvancedHMC.Adaptation.UnitEuclideanMetric}(0.1, 5)
+Number of iterations for Dirichlet prior: 100
+Number of burnin iterations for Dirichlet prior: 10
 Number of iterations for graphLaplacian prior: 10
 Number of burnin iterations for graphLaplacian prior: 3
-RootSquareError Dirichlet binprobs: 0.09425328616265234
-RootSquareError Graph Laplacian binprobs: 0.05736998616527255
+RootSquareError Dirichlet binprobs: 0.128993610974172
+RootSquareError Graph Laplacian binprobs: 0.05804099772666654
 
-RootSquareError Dirichlet density: 202.55927208089255
-RootSquareError Graph Laplacian density: 133.99446766945704

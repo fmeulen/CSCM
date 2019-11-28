@@ -1,4 +1,3 @@
-#cd("/Users/Frank/Sync/DOCUMENTS/onderzoek/code/currentstatuscontinuousmarks")
 using Distributions, Test, Statistics, Random, LinearAlgebra
 using DelimitedFiles,  DataFrames, RCall
 using Turing
@@ -38,11 +37,11 @@ biny = range(miny, stop=maxy, length=n+1)
 binarea = (binx[2]-binx[1]) * (biny[2]-biny[1]) # the same for all bins
 
 #----------------------------------------------------------------------------------------------
-ITER_DIR = 1000 #nr of iterations
-BI_DIR = 100 #nr of burnin iterations
+ITER_DIR = 100 # nr of iterations for Dirichlet prior
+BI_DIR = 10 # nr of burnin iters
 
-ITER_GL = 10
-BI_GL = div(ITER_GL,3)
+ITER_GL = 10 # nr of iterations for GraphLaplacian prior
+BI_GL = div(ITER_GL,3) # nr of burnin iters
 
 # Dirichlet prior
 ps = 0.1
@@ -50,9 +49,10 @@ ps = 0.1
 
 # Graph Laplacian prior
 samplers=[HMC(0.1, 5) HMC(0.1, 2)  DynamicNUTS()]
-sp = HMC(0.1, 5)#samplers[1]
+sp = samplers[1]
 
-@time iterates_gl, Hiterates_gl, θiterates_gl, θpostmean_gl = sample_graphlap(t,ind_yknown, y,binx,biny, ITER_GL, BI_GL; sp=sp)
+@time iterates_gl, Hiterates_gl, θiterates_gl, θpostmean_gl = sample_graphlap(t,ind_yknown,
+                y,binx,biny, ITER_GL, BI_GL; sampler=sp)
 
 # ensure that there is a directory called "out" in the working directory
 make_traceplots = false

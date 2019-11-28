@@ -1,0 +1,16 @@
+Data choice: x+y
+Sample size: 100
+Fraction in data with mark observed: 0.56
+
+Hyperpar Dirichlet prior: 0.1
+
+Number of iterations Dir: 5000
+Number of burnin iterations Dir: 2500
+Sampler for graphLap: DynamicNUTS{Turing.Core.ForwardDiffAD{40},Union{}}(2000, Set(Union{}[]))
+Number of iterations graphLap: 2000
+Number of burnin iterations graphLap: 500
+RootSquareError Dirichlet binprobs: 0.0702062537270799
+RootSquareError Graph Laplacian binprobs: 0.017605001031796554
+
+RootSquareError Dirichlet density: 140.662570372291
+RootSquareError Graph Laplacian density: 36.393421900639225

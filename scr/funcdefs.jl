@@ -61,13 +61,6 @@ function Ftrue(x,y,truedatagen, θ)  # θ is par for GaussianCopula copula
     if truedatagen=="(3/8)(x2+y)"
         out = (3/8)*(y*(x^3)/3 + 0.5*x*y^2)
     end
-    # if truedatagen=="GaussianCopula"
-    #     if abs(x*y) <10^(-2)
-    #         out = 0.0
-    #     else
-    #         out = max((x^(-θ)+y^(-θ)-1)^(-1/θ),0)
-    #     end
-    # end
     if truedatagen=="GaussianCopula"
         th = θ
         @rput x
@@ -93,14 +86,6 @@ function ftrue(x,y,truedatagen, θ)  # θ is par for GaussianCopula copula
     if truedatagen=="(3/8)(x2+y)"
         out = (3/8)*(x^2 + y)
     end
-    # if truedatagen=="GaussianCopula"
-    #     if abs(x*y) <10^(-2)
-    #         out = 0.0
-    #     else
-    #         #out = (θ+1) * (x^(-θ) + y^(-θ) -1)^(-1/θ-2)  * (x*y)^(-θ-1)
-    #         logout = log(θ+1) - (θ^(-1) + 2)* log(x^(-θ) + y^(-θ) -1) - (θ+1)* (log(x) + log(y))
-    #         out = exp(logout)
-    #     end
     if truedatagen=="GaussianCopula"
         th = θ
         @rput x
@@ -135,40 +120,11 @@ function binprobtrue(binx,biny,truedatagen,θ)
     out
 end
 
-function denstrue(x,y,truedatagen,θ)
-    out = Float64[]
-    for i in eachindex(x)
-        for j in eachindex(y)
-            val = ftrue(x[i],y[j], truedatagen,θ)
-            push!(out, val)
-        end
-    end
-    out
-end
-
-function f_piecewise_constant(x,y,binx,biny,dweights)
-    n = length(binx)-1
-    ix = indbin(x,binx)
-    iy = indbin(y,biny)
-    dweights[(ix-1)*n + iy]
-end
-
-function dens_piecewise_constant(gridx,gridy,binx,biny,dweights)
-    out = Float64[]
-    for i in eachindex(gridx)
-        for j in eachindex(gridy)
-            val = f_piecewise_constant(gridx[i],gridy[j],binx,biny,dweights)
-            push!(out, val)
-        end
-    end
-    out
-end
-
 
 """
-Compare bin probabilities in pweights to true bin probabilities computed using treudatagen
+Compare bin probabilities in pweights to true bin probabilities computed using true datagen
 """
-function prep_plotting_p(pest,truedatagen,binx,biny,titel,θ)
+function write_binprobs(pest,truedatagen,binx,biny,titel,θ)
     m = length(binx)-1 ; n = length(biny)-1
     xx = repeat(binx[2:end],inner=n)
     yy = repeat(biny[2:end],outer=m)
@@ -178,151 +134,7 @@ function prep_plotting_p(pest,truedatagen,binx,biny,titel,θ)
     d
 end
 
-function plotting_p(d,titel;mincol_lim=-1,maxcol_lim=1)
-    @rput d
-    @rput titel
-    @rput mincol_lim
-    @rput maxcol_lim
-    R"""
-        library(ggplot2)
-        library(tidyverse)
-        theme_set(theme_light())
-        ggplot(data=d,aes(x, y, fill=pest-ptrue)) + geom_tile() +
-        scale_fill_gradient2(limits=c(mincol_lim, maxcol_lim))+
-        ggtitle(paste0(titel," - bin probability error"))
-        ggsave(paste0("./out/",titel,"_p.pdf"))
-    """
-    norm(d[:pest]-d[:ptrue])
-end
 
-"""
-Compare estimated piecewise constant probability density function, specified via
-dweights, to true density computed using treudatagen
-"""
-function prep_plotting_d(dweights,truedatagen,binx,biny, titel,θ ;gridN=200)
-    # Asses error by binning for true pdf
-    minx, maxx = extrema(binx)
-    miny, maxy = extrema(biny)
-    gridx = range(minx,stop=maxx-0.001,length=gridN)
-    gridy = range(miny,stop=maxy-0.001,length=gridN)
-
-    dest = dens_piecewise_constant(gridx,gridy,binx,biny,dweights)
-    dtrue = denstrue(gridx,gridy,truedatagen,θ)
-
-    d = DataFrame(dest=dest,dtrue=dtrue, x =repeat(gridx,inner=gridN), y=repeat(gridy,outer=gridN))
-    CSV.write("./out/"*titel*"density.csv",d)
-    d
-end
-
-function plotting_d(d, titel;mincol_lim=-1,maxcol_lim=1)
-    @rput d
-    @rput titel
-    @rput mincol_lim
-    @rput maxcol_lim
-    R"""
-        library(ggplot2)
-        library(tidyverse)
-        theme_set(theme_light())
-        ggplot(data=d,aes(x, y, fill=dest-dtrue)) + geom_tile() +
-                scale_fill_gradient2(limits=c(mincol_lim, maxcol_lim))+
-        ggtitle(paste0(titel," - density error"))
-        ggsave(paste0("./out/",titel,"_d.pdf"))
-    """
-
-    R"""
-        library(ggplot2)
-        library(tidyverse)
-        theme_set(theme_light())
-        ggplot(data=d,aes(x, y,z=dtrue)) +
-            geom_tile(aes(fill=dtrue))+
-            #stat_contour(bins=6,aes(x,y,z=dtrue), color="black", size=0.6)+
-            scale_fill_gradient2(low="white", high="black")#+geom_contour(binwidth = 0.5)
-            ggtitle("Data generating density")
-
-        ggsave("./out/truedensitydensity.pdf")
-    """
-
-    norm(d[:dest]-d[:dtrue])
-end
-
-# Example with data from GaussianCopula copula
-
-abstract type Copula
-end
-
-struct GaussianCopula <: Copula
-    θ
-end
-
-
-"""
- rand(fam::GaussianCopula,n::Integer)
-
- simulate bivariate data from GaussianCopula family (returns 2 x n matrix so that each column contains an independent realisation)
-
- x=rand(GaussianCopula(2.0),5000)
-"""
-function Base.rand(fam::GaussianCopula,n::Integer)
-    th = fam.θ
-    @rput th
-    @rput n
-    R"""
-        library(copula)
-        cop=normalCopula(th,2)
-        out = rCopula(n,copula = cop)
-    """
-    @rget out
-    out
-    # θ = fam.θ
-    # res = zeros(2,n)
-    # for i in 1:n
-    #     U = rand()
-    #     S = U^(-θ) - 1
-    #     res[:,i] = [U, ((1+S) * rand()^(-θ/(1+θ)) - S)^(-1/θ)]
-    # end
-    # res
-end
-
-# x=rand(GaussianCopula(2.0),5000)
-# @rput x
-# R"""
-#     plot(x[1,],x[2,])
-# """
-
-
-
-
-function plotting(θpostmean_dir,truedatagen,binx,biny,binarea,θcopula, N)
-    df_error_dir_p = prep_plotting_p(θpostmean_dir,truedatagen,binx,biny,"Dirichlet",θcopula)
-    df_error_gl_p = prep_plotting_p(θpostmean_gl,truedatagen,binx,biny,"graphLaplacian",θcopula)
-    # set colour limits
-    minl, maxl = extrema(  hcat(df_error_dir_p.pest-df_error_dir_p.ptrue,df_error_gl_p.pest-df_error_gl_p.ptrue))
-    # make plots
-    error_dir_p = plotting_p(df_error_dir_p,"Dirichlet";mincol_lim=minl,maxcol_lim=maxl)
-    error_gl_p = plotting_p(df_error_gl_p,"graphLaplacian";mincol_lim=minl,maxcol_lim=maxl)
-
-    # similarly for densities
-    df_error_dir_d = prep_plotting_d(θpostmean_dir/binarea,truedatagen,binx,biny, "Dirichlet",θcopula)
-    df_error_gl_d = prep_plotting_d(θpostmean_gl/binarea,truedatagen,binx,biny, "graphLaplacian",θcopula)
-    minl, maxl = extrema(  hcat(df_error_dir_d.dest-df_error_dir_d.dtrue,df_error_gl_d.dest-df_error_gl_d.dtrue))
-    error_dir_d = plotting_d(df_error_dir_d, "Dirichlet";mincol_lim=minl,maxcol_lim=maxl)
-    error_gl_d = plotting_d(df_error_gl_d, "graphLaplacian";mincol_lim=minl,maxcol_lim=maxl)
-    error_dir_p,  error_gl_p, error_dir_d,  error_gl_d
-end
-
-
-#----------- code for graph laplacian priorscale
-"""
-Compute inverse graph Laplacian, with power parameter (ρ) fixed to one.
-"""
-function invgraphlaplacian(m,n,τ) # order columnwise
-    kol1 = [2; fill(3,n-2); 2]
-    diagD = vcat(kol1, repeat(kol1 .+ 1,m-2),kol1)
-    k = m * n
-    L = diagm(0=>diagD .+ 1/k^2, 1=> fill(-1,k-1), -1 => fill(-1,k-1))   # graph Laplacian matrix
-    Σ = τ^(-1) * inv(L)
-    (Σ+Σ')/2
-end
 
 mutable struct censoringinfo
     fracarea  # keep track of fraction of bin areas
@@ -353,7 +165,7 @@ end
     Here 'iterates' contains all iterates, whereas for
     Hiterates, θiterates, θpostmean burnin samples have been removed
 """
-function sample_graphlap(t,ind_yknown, y,binx,biny, ITER_GL, BI; sp=HMC(0.1, 5))
+function sample_graphlap(t,ind_yknown, y,binx,biny, ITER_GL, BI_GL; sampler=HMC(0.1, 5))
     binarea = (binx[2]-binx[1]) * (biny[2]-biny[1]) # the same for all bins
     NSAMPLE = length(t)
     zz = zeros(Int64,NSAMPLE)
@@ -377,11 +189,11 @@ function sample_graphlap(t,ind_yknown, y,binx,biny, ITER_GL, BI; sp=HMC(0.1, 5))
 
     L = graphlaplacian(m,n) # graph Laplacian with τ=1
     model = GraphLaplacianModel(ones(Int8,NSAMPLE),ci,L)
-    chn = Turing.sample(model, sp, ITER_GL)
+    chn = Turing.sample(model, sampler,ITER_GL)
     # here also possible to use Gibbs sampling where tau and H are iteratively updated.
 
     iterates = chn.value[1:end,:,1]
-    Hiterates = chn.value[BI:end,1:m*n,1]
+    Hiterates = chn.value[BI_GL:end,1:m*n,1]
     θiterates = mapslices(invlogit, Hiterates,dims=2) # transform iterates back to θ
     θpostmean = vec(mean(θiterates,dims=1))
     iterates, Hiterates, θiterates, θpostmean

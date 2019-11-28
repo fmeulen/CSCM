@@ -1,13 +1,15 @@
-# visualisaton of the posterior
-error_dir_p,  error_gl_p, error_dir_d,  error_gl_d = plotting(θpostmean_dir,truedatagen,binx,biny,binarea,θcopula, NSAMPLE)
-
+# write probs to csv files
+p_dir = write_binprobs(θpostmean_dir,truedatagen,binx,biny,"Dirichlet",θcopula)
+p_gl = write_binprobs(θpostmean_gl,truedatagen,binx,biny,"graphLaplacian",θcopula)
+error_dir_p = norm(p_dir[:pest]-p_dir[:ptrue])
+error_gl_p = norm(p_gl[:pest]-p_gl[:ptrue])
 #----------------------------------------------------------------------------------------------
 # write observations to csv file
 yobserved = fill("yes",NSAMPLE)
 yobserved[ind_yunknown] .= "no"
 d = DataFrame(x=x,y=y,t=t,yobserved=yobserved)
 CSV.write("./out/observations.csv",d)
- 
+
 #----------------------------------------------------------------------------------------------
 # write info to file
 facc = open("./out/info.txt","w")
@@ -28,31 +30,5 @@ facc = open("./out/info.txt","w")
     write(facc, "RootSquareError Dirichlet binprobs: ", string(error_dir_p),"\n")
     write(facc, "RootSquareError Graph Laplacian binprobs: ", string(error_gl_p),"\n\n")
 
-    write(facc, "RootSquareError Dirichlet density: ", string(error_dir_d),"\n")
-    write(facc, "RootSquareError Graph Laplacian density: ", string(error_gl_d),"\n")
 
 close(facc)
-
-#----------------------------------------------------------------------------------------------
-if make_traceplots
-    ##### trace plots for graphlap
-    trace_df = DataFrame(th1=θiterates_gl[:,1],th2=θiterates_gl[:,2],th10=θiterates_gl[:,10],
-    th11=θiterates_gl[:,11])
-    nr, nc = size(trace_df)
-    @rput trace_df
-    @rput nr; @rput nc
-    R"""
-    library(ggplot2);    library(tidyverse);      theme_set(theme_light())
-    trace_df %>% gather(value=value, key=coefficient) %>% mutate(iterate=rep(1:nr,nc)) %>%
-        ggplot(aes(x=iterate,y=value)) + geom_path() + facet_wrap(~coefficient,scales='free')
-    """
-
-    #### trace plots for dirichlet
-    θiterates = [Any[iterates_dir[iter][i,j], iter, "[$i,$j]"] for iter in 1:ITER, i in 1:m, j in 1:n][:]
-    iterates_df = DataFrame(w=extractind(θiterates,1), iterate=extractind(θiterates,2), binID=extractind(θiterates,3))
-    @rput iterates_df
-    R"""
-    library(ggplot2);    library(tidyverse);      theme_set(theme_light())
-    iterates_df %>%  ggplot() + geom_line(aes(x=iterate,y=w)) + facet_wrap(~binID,scales="free")
-    """
-end

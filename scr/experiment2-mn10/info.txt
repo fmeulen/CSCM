@@ -1,0 +1,16 @@
+Data choice: GaussianCopula
+Sample size: 100
+Fraction in data with mark observed: 0.67
+
+Hyperpar Dirichlet prior: 0.1
+
+Number of iterations Dir: 5000
+Number of burnin iterations Dir: 2500
+Sampler for graphLap: DynamicNUTS{Turing.Core.ForwardDiffAD{40},Union{}}(2000, Set(Union{}[]))
+Number of iterations graphLap: 2000
+Number of burnin iterations graphLap: 500
+RootSquareError Dirichlet binprobs: 0.16009403566428093
+RootSquareError Graph Laplacian binprobs: 0.07954255839002948
+
+RootSquareError Dirichlet density: 330.1360678227845
+RootSquareError Graph Laplacian density: 178.00642996519176
