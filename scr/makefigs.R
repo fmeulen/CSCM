@@ -28,11 +28,20 @@ dev.off()
 
 ##### trace plots for graphlap
 gloutdf <- read_csv("out/gloutdf.csv")
-gloutdf %>% gather(key="variable",value="value",-iterate) %>%
+pgl <- gloutdf %>% gather(key="variable",value="value",-iterate) %>%
   ggplot() + geom_line(aes(x=iterate,y=value)) + facet_wrap(~variable,scales="free")
 
 
 #### trace plots for dirichlet
 diroutdf <- read_csv("out/diroutdf.csv")
-diroutdf %>%  filter(binID %in% c("[1,1]","[1,2]","[1,3]","[2,3]","[3,3]","[5,5]"))%>%
+pdir <- diroutdf %>%  filter(binID %in% c("[1,1]","[1,2]","[1,3]","[2,3]","[3,3]","[5,5]"))%>%
   ggplot() + geom_line(aes(x=iterate,y=w)) + facet_wrap(~binID,scales="free")
+
+
+
+pdf("./out/trace_gl.pdf",width=8,height=4)
+show(pgl)
+dev.off()
+pdf("./out/trace_dir.pdf",width=8,height=4)
+show(pdir)
+dev.off()
