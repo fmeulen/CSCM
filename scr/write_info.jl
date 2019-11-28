@@ -32,3 +32,15 @@ facc = open("./out/info.txt","w")
 
 
 close(facc)
+
+# for traceplots, use iterates_dir and iterates_gl
+
+dirout = [Any[iterates_dir[iter][i,j], iter, "[$i,$j]"] for iter in 1:ITER_DIR, i in 1:m, j in 1:n][:]
+dirout_df = DataFrame(w=extractind(θiterates,1), iterate=extractind(θiterates,2), binID=extractind(θiterates,3))
+CSV.write("./out/diroutdf.csv",dirout_df)
+
+τindex = size(iterates_gl)[2]  # extract index where τ is stored in output of Turing
+glout = DataFrame(iterates_gl[:,[1,2,3,10,11,τindex],1])
+glout[:iterate] = 1:ITER_GL
+names!(glout,Symbol.(["iterate","H1","H2","H3","H10","H11","tau"]))
+CSV.write("./out/gloutdf.csv",glout) # el

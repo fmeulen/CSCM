@@ -16,7 +16,7 @@ Random.seed!(1234)
 
 #----------------------------------------------------------------------------------------------
 # Sample data (available data consist of (ind_yknown, ind_yunknown, t, y[ind_yknown])
-truedatagen =["uniform","x+y","(3/8)(x2+y)","GaussianCopula"][4]
+truedatagen =["uniform","x+y","(3/8)(x2+y)","GaussianCopula"][2]
 NSAMPLE = 500 # sample size
 θcopula = -0.65 # par for GaussianCopula copula
 x, y, t, ind_yknown, ind_yunknown = gendata(truedatagen, NSAMPLE, θcopula)
@@ -55,5 +55,4 @@ sp = samplers[1]
                 y,binx,biny, ITER_GL, BI_GL; sampler=sp)
 
 # ensure that there is a directory called "out" in the working directory
-make_traceplots = false
 include("write_info.jl")
