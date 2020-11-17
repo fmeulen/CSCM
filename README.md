@@ -1,4 +1,4 @@
-# CSCM
+# Current Status Continuous Marks
 Bayesian computation for the current status continuous marks model. 
 
 TBA: Detailed information.
