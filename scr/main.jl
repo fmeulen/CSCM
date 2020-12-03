@@ -2,9 +2,11 @@ using Distributions, Test, Statistics, Random, LinearAlgebra
 using DelimitedFiles,  DataFrames, RCall
 using Turing
 using StatsPlots
+using StatsFuns
 using DynamicHMC
 using CSV, Statistics
 using Laplacians
+using Setfield
 #@rlibrary copula
 
 #----------------------------------------------------------------------------------------------
@@ -12,6 +14,7 @@ workdir = @__DIR__
 println(workdir)
 cd(workdir)
 include("funcdefs.jl")
+include("graphlap2.jl")
 Random.seed!(1234)
 
 #----------------------------------------------------------------------------------------------
