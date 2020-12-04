@@ -1,14 +1,14 @@
 Data choice: (3/8)(x2+y)
-Sample size: 500
-Fraction in data with mark observed: 0.586
+Sample size: 100
+Fraction in data with mark observed: 0.57
 
 Hyperpar Dirichlet prior: 0.1
 
-Sampler: HMC{Turing.Core.ForwardDiffAD{40},,AdvancedHMC.UnitEuclideanMetric}(0.1, 5)
+Sampler: HMC{Turing.Core.ZygoteAD,,AdvancedHMC.UnitEuclideanMetric}(0.1, 5)
 Number of iterations for Dirichlet prior: 5000
 Number of burnin iterations for Dirichlet prior: 100
 Number of iterations for graphLaplacian prior: 500
 Number of burnin iterations for graphLaplacian prior: 166
-RootSquareError Dirichlet binprobs: 0.12688668605568154
-RootSquareError Graph Laplacian binprobs: 0.0484768862304626
+RootSquareError Dirichlet binprobs: 0.0829192435261644
+RootSquareError Graph Laplacian binprobs: 0.04807615071008205
 

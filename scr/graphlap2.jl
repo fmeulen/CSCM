@@ -1,10 +1,11 @@
+# code to sample from the posterior with the logistic-Normal-graphLaplacina prior
+
 struct censoringinfo{S<:Number, T<:Number}
     fracarea::Vector{S}         # keep track of fraction of bin areas
     ind::Vector{T}              # corresponding indices
 end
 
 graphlaplacian(m,n) = Matrix(lap(grid2(m,n))) + I/(m*n)^2
-
 
 """
     mapsimplex(x)
@@ -84,10 +85,10 @@ function traceplots(chn)
     out2 =  chn[:,Symbol("H[2]"),:]
     out10 = chn[:,Symbol("H[10]"),:]
 
-    p1 = plot(out1, label = "H[1]")
-    p2 = plot(out2, label = "H[2]")
-    p10 = plot(out10, label="H[10]")
-    pτ = plot(outτ, label="τ")
+    p1 = Plots.plot(out1, label = "H[1]")
+    p2 = Plots.plot(out2, label = "H[2]")
+    p10 = Plots.plot(out10, label="H[10]")
+    pτ = Plots.plot(outτ, label="τ")
     l = @layout [a b; c d]
     Plots.plot(p1, p2, p10, pτ, layout=l)
 end

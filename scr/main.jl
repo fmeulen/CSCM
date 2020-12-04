@@ -2,13 +2,16 @@ using Distributions, Random, LinearAlgebra
 #using Test, Statistics
 using DelimitedFiles,  DataFrames, RCall
 using Turing
-using StatsPlots
 using StatsFuns
 using DynamicHMC
 using CSV, Statistics
 using Laplacians
 using Setfield
 using MCMCChains
+#using ReverseDiff
+using Zygote
+using Plots
+@rlibrary copula
 
 workdir = @__DIR__
 println(workdir)
@@ -18,10 +21,12 @@ include("dirichlet.jl")
 include("graphlap2.jl")
 Random.seed!(1234)
 
+#Turing.setadbackend(:reversediff)
+Turing.setadbackend(:zygote)
 
 # Sample data (available data consist of (ind_yknown, ind_yunknown, t, y[ind_yknown])
 truedatagen =["uniform","x+y","(3/8)(x2+y)","GaussianCopula"][3]
-nsample = 500 # sample size
+nsample = 100 # sample size
 θcopula = -0.65 # par for GaussianCopula copula
 x, y, t, ind_yknown, ind_yunknown = gendata(truedatagen,nsample, θcopula)
 
@@ -37,9 +42,6 @@ else
 end
 binx = range(minx, stop=maxx, length=m+1)
 biny = range(miny, stop=maxy, length=n+1)
-#binarea = (binx[2]-binx[1]) * (biny[2]-biny[1]) # the same for all bins
-
-
 
 
 ITERdir = 5000 # nr of iterations for Dirichlet prior
@@ -55,10 +57,24 @@ ps = 0.1
 @time θdir = sample_dir(t,ind_yknown, y, (binx, biny), ITERdir; priorscale = ps)
 
 # Graph Laplacian prior
-samplers=[HMC(0.1, 5) HMC(0.1, 2)  DynamicNUTS()]
-sp = samplers[1]
+samplers=[HMC(0.1, 5) HMC(0.1, 10)  DynamicNUTS()]
+
+
+sp = samplers[2]
 
 @time  ci, chn, τ, H, θgl=  sample_graphlap(t,ind_yknown, ind_yunknown, y, (binx, biny), ITERgl; alg=sp)
 
 # ensure that there is a directory called "out" in the working directory
 include("write_info.jl")
+
+
+ ##FIXME, also compute MLE
+optimize(model, MLE(), NelderMead())
+
+# Generate an MAP estimate.
+map_estimate = optimize(model, MAP())
+
+# Generate an MAP estimate.
+map_estimate = optimize(model, MAP())
+# Sample with the MAP estimate as the starting point.
+chain = sample(model, NUTS(), 1_000, init_theta = map_estimate.values.array)
