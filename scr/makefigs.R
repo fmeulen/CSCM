@@ -5,10 +5,13 @@ setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 
 library(ggplot2)
 library(tidyverse)
+theme_set(theme_bw(base_size = 12))
+
+wd = getwd()
 
 ### make figs for binerror probabilities
-dir_binprob <- read_csv("~/.julia/dev/CSCM/scr/out/Dirichletbinprob.csv") %>% mutate(Dirichlet=pest-ptrue)
-gl_binprob <- read_csv("~/.julia/dev/CSCM/scr/out/graphLaplacianbinprob.csv") %>% mutate(GraphLaplacian=pest-ptrue)
+dir_binprob <- read_csv(paste0(wd,"/out/Dirichletbinprob.csv")) %>% mutate(Dirichlet=pest-ptrue)
+gl_binprob <- read_csv(paste0(wd,"/out/graphLaplacianbinprob.csv")) %>% mutate(GraphLaplacian=pest-ptrue)
 
 d <- dir_binprob %>% dplyr::select(x,y,Dirichlet) %>%
     mutate(GraphLaplacian =gl_binprob$GraphLaplacian) %>% 
