@@ -5,6 +5,28 @@ struct censoringinfo{S<:Number, T<:Number}
     ind::Vector{T}              # corresponding indices
 end
 
+function construct_censoringinfo(t, (binx,biny), ind_yknown, ind_yunknown)
+    nsample = length(t)
+    m = length(binx) - 1
+    n = length(biny) - 1
+    # construct censoringinfo
+    ci = Vector{censoringinfo}(undef,nsample)
+    for k ∈ ind_yknown
+        it = indbin(t[k],binx)
+        iy = indbin(y[k],biny)
+        fa =  [ (min(binx[i+1],t[k])-binx[i])/(binx[i+1]-binx[i]) for i ∈ 1:it]
+        ind = [iy + ℓ*n for ℓ ∈ 0:(it-1)]
+        ci[k] = censoringinfo(fa, ind)
+    end
+    for k ∈ ind_yunknown
+        it = indbin(t[k],binx)
+        fa = [(binx[i+1]-max(t[k],binx[i]))/(binx[i+1] - binx[i])  for i ∈ it:m for j ∈ 1:n]
+        ind = collect(((it-1)*n+1):(m*n))
+        ci[k] = censoringinfo(fa,ind)
+    end
+    ci
+end
+
 graphlaplacian(m,n) = Matrix(lap(grid2(m,n))) + I/(m*n)^2
 
 """
@@ -13,10 +35,12 @@ graphlaplacian(m,n) = Matrix(lap(grid2(m,n))) + I/(m*n)^2
 apply logistic funtion to each element of vector `x` and scale such that the
 elements sum to 1
 """
-function mapsimplex(x)
-    y = logistic.(x)
-    y/sum(y)
-end
+# function mapsimplex(x)
+#     y = logistic.(x)
+#     y/sum(y)
+# end
+
+mapsimolex(x) = softmax(x)
 
 @model GraphLaplacianMod(ci,L) = begin
     τ ~ InverseGamma(.1,.1)
@@ -47,24 +71,7 @@ end
     ci::censoringinfo, chn::Chains
 """
 function sample_graphlap(t,ind_yknown, ind_yunknown, y, (binx, biny), ITER; alg=HMC(0.1, 5))
-    nsample = length(t)
-    m = length(binx) - 1
-    n = length(biny) - 1
-    # construct censoringinfo
-    ci = Vector{censoringinfo}(undef,nsample)
-    for k ∈ ind_yknown
-        it = indbin(t[k],binx)
-        iy = indbin(y[k],biny)
-        fa =  [ (min(binx[i+1],t[k])-binx[i])/(binx[i+1]-binx[i]) for i ∈ 1:it]
-        ind = [iy + ℓ*n for ℓ ∈ 0:(it-1)]
-        ci[k] = censoringinfo(fa, ind)
-    end
-    for k ∈ ind_yunknown
-        it = indbin(t[k],binx)
-        fa = [(binx[i+1]-max(t[k],binx[i]))/(binx[i+1] - binx[i])  for i ∈ it:m for j ∈ 1:n]
-        ind = collect(((it-1)*n+1):(m*n))
-        ci[k] = censoringinfo(fa,ind)
-    end
+    ci = construct_censoringinfo(t, (binx,biny), ind_yknown, ind_yunknown)
     # define model
     L = graphlaplacian(m,n) # graph Laplacian with τ=1
     model = GraphLaplacianMod(ci,L)

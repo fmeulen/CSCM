@@ -1,12 +1,13 @@
 p = traceplots(chn)
 
 # posterior mean graphlap
-θ̄gl = vec(mean(θgl[bi_gl,:], dims=1))
+#θ̄gl = vec(mean(θgl[bi_gl,:], dims=1))
 θ̄dir = mat2vec(mean(θdir[bi_dir]))
 
 hcat(θ̄gl, θ̄dir)
 
-
+# hcat(θ̄gl, θ̄dir, θ̄mle[2:end])
+# θ̄gl - θ̄mle[2:end]
 
 # write probs to csv files
 p_dir = write_binprobs(θ̄dir,truedatagen,binx,biny,"Dirichlet",θcopula)
