@@ -38,7 +38,7 @@ grid.arrange(p2,p3)
   scale_fill_gradient2(limits=c(mincol_lim, maxcol_lim)) + xlab("") + ylab("")
 p2  
 
-pdf("./out/binprobest.pdf",width=8,height=4)
+pdf("./out/binproberro2.pdf",width=8,height=4)
 show(p2)
 dev.off()
 

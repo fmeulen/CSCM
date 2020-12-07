@@ -12,7 +12,6 @@ function pcn(t,ind_yknown, y, (binx, biny), IT; ρ = 0.95, τinit = 1.0)
     ci = construct_censoringinfo(t, (binx,biny), ind_yknown, ind_yunknown)
     m, n = length(binx) - 1, length(biny) - 1
     L = PDMat(graphlaplacian(m,n))
-    #L = Matrix(lap(grid2(m,n)))
     Uinv = inv(L.chol.U)
 
     N = m*n
@@ -45,6 +44,6 @@ function pcn(t,ind_yknown, y, (binx, biny), IT; ρ = 0.95, τinit = 1.0)
         τ = rand(InverseGamma(0.5N + 0.1, 0.5PDMats.quad(L, z) + 0.1))
         τsave[i] = τ
     end
-    @show "Average acceptance rate for pCN steps equals $(acc/IT)"
-    θsave, τsave, acc
+    @show "Fraction of accepted pCN steps equals: $(acc/IT)"
+    θsave, τsave, acc, ρ
 end

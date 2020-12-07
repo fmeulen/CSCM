@@ -51,16 +51,17 @@ facc = open("./out/info.txt","w")
 
     write(facc, "Hyperpar Dirichlet prior: ", string(ps), "\n\n")
 
-    write(facc, "Sampler: ", string(sp),"\n")
-    write(facc, "Number of iterations for Dirichlet prior: ",string(ITERdir),"\n")
-    write(facc, "Number of burnin iterations for Dirichlet prior: ",string(BIdir),"\n")
+    write(facc, "Number of iterations: ",string(IT),"\n")
+    write(facc, "Number of burnin iterations: ",string(BI),"\n")
 
-    write(facc, "Number of iterations for graphLaplacian prior: ",string(ITERgl),"\n")
-    write(facc, "Number of burnin iterations for graphLaplacian prior: ",string(BIgl),"\n")
-
-
-    write(facc, "RootSquareError Dirichlet binprobs: ", string(error_dir_p),"\n")
-    write(facc, "RootSquareError Graph Laplacian binprobs: ", string(error_gl_p),"\n\n")
+    write(facc, "Turing Sampler: ", string(sp),"\n")
+    write(facc, "Number of iterations for Turing: ",string(ITERgl),"\n")
+    write(facc, "Number of burnin iterations for Turing: ",string(BIgl),"\n")
 
 
+    write(facc, "Wasserstein distance binprobs Dirichlet: ", string(wdir),"\n")
+    write(facc, "Wasserstein distance binprobs Graph Laplacian: ", string(wgl),"\n\n")
+
+    write(facc, "Parameter rho for pCN:", string(ρ), "\n")
+    write(facc, "Fraction of accepted pCN steps: ", string(acc/IT),"\n")
 close(facc)
