@@ -1,19 +1,40 @@
-p = traceplots(chn)
+θ̄dir = mat2vec(mean(θdir[bi]))
+θ̄gl = [mean(x[bi]) for x ∈ eachcol(θsave)]
 
-# posterior mean graphlap
-#θ̄gl = vec(mean(θgl[bi_gl,:], dims=1))
-θ̄dir = mat2vec(mean(θdir[bi_dir]))
+#θ̄gl = vec(mean(θgl[bi_gl,:], dims=1))  # posterior mean graphlap using Turing
+#p = traceplots(chn) # for Turing output
 
-hcat(θ̄gl, θ̄dir)
 
-# hcat(θ̄gl, θ̄dir, θ̄mle[2:end])
-# θ̄gl - θ̄mle[2:end]
+p2 = Plots.scatter(t[ind_yknown],y[ind_yknown],
+color=:lightblue,label="y observed", legend=:outertopright)
+Plots.scatter!(p2, t[ind_yunknown], y[ind_yunknown],color=:pink,
+ label="y not observed", title = "Data",  xlabel="censoring time", ylabel="mark")
 
-# write probs to csv files
-p_dir = write_binprobs(θ̄dir,truedatagen,binx,biny,"Dirichlet",θcopula)
-p_gl = write_binprobs(θ̄gl,truedatagen,binx,biny,"graphLaplacian",θcopula)
-error_dir_p = norm(p_dir[!,:pest]-p_dir[!,:ptrue])
-error_gl_p = norm(p_gl[!,:pest]-p_gl[!,:ptrue])
+# traceplots for pcn
+tr1 = Plots.plot(θsave[:,1], label="θ[1]")
+tr2 = Plots.plot(θsave[:,10], label="θ[10]")
+tr3 = Plots.plot(θsave[:,11], label="θ[11]")
+tr4 = Plots.plot(τsave, label="τ")
+lay = @layout [a b; c d]
+Plots.plot(tr1, tr2, tr3, tr4, layout=lay)
+
+
+# true binprobs
+θ0, xx, yy = θtrue(truedatagen,binx,biny)
+d = DataFrame(ptrue = θ0, Dirichlet =θ̄dir, graphLaplacian = θ̄gl,  x=xx, y=yy)
+CSV.write("./out/binprobs.csv",d)
+d
+
+# compute Wasserstein distances
+th0 = θ0; thdir = θ̄dir; thgl = θ̄gl
+@rput th0 thdir thgl
+R"""
+wdir = wasserstein1d(th0, thdir)
+wgl =  wasserstein1d(th0, thgl)
+"""
+@rget wdir wgl
+println(wdir/wgl)
+
 #----------------------------------------------------------------------------------------------
 # write observations to csv file
 yobserved = fill("yes",nsample)
@@ -43,15 +64,3 @@ facc = open("./out/info.txt","w")
 
 
 close(facc)
-
-# for traceplots, use iterates_dir and iterates_gl
-#
-# dirout = [Any[iterates_dir[iter][i,j], iter, "[$i,$j]"] for iter in 1:ITERdir, i in 1:m, j in 1:n][:]
-# dirout_df = DataFrame(w=extractind(θiterates,1), iterate=extractind(θiterates,2), binID=extractind(θiterates,3))
-# CSV.write("./out/diroutdf.csv",dirout_df)
-#
-# τindex = size(iterates_gl)[2]  # extract index where τ is stored in output of Turing
-# glout = DataFrame(iterates_gl[:,[1,2,3,10,11,τindex],1])
-# glout[!,:iterate] = 1:ITER_GL
-# names!(glout,Symbol.(["iterate","H1","H2","H3","H10","H11","tau"]))
-# CSV.write("./out/gloutdf.csv",glout) # el

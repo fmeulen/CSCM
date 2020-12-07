@@ -1,8 +1,5 @@
-
-
-
-function loglik!(θ, τ, z,  L, ci)
-    softmax!(θ, √(τ) * (L*z))
+function loglik!(θ, τ, z,  U, ci)
+    softmax!(θ, U * z/√τ)
     ll = 0.0
     @inbounds for i ∈ eachindex(ci)
         γ = ci[i]
@@ -11,46 +8,43 @@ function loglik!(θ, τ, z,  L, ci)
     θ, ll
 end
 
-function pcn(ci, IT; ρ=0.9, τ = 1.0)
-    L = graphlaplacian(m,n)
-    Lchol = PDMat(L).chol.L
+function pcn(t,ind_yknown, y, (binx, biny), IT; ρ = 0.95, τinit = 1.0)
+    ci = construct_censoringinfo(t, (binx,biny), ind_yknown, ind_yunknown)
+    m, n = length(binx) - 1, length(biny) - 1
+    L = PDMat(graphlaplacian(m,n))
+    #L = Matrix(lap(grid2(m,n)))
+    Uinv = inv(L.chol.U)
 
     N = m*n
     z = randn(N)
-
-    θ, ll = loglik!(zeros(N), τ, z, Lchol, ci)
+    τ = τinit
+    θ, ll = loglik!(zeros(N), τ, z, Uinv, ci)
 
     # cache arrays
     zᵒ = zeros(N)
     znew = zeros(N)
     θᵒ = zeros(N)
 
-
     ρc = sqrt(1.0-ρ^2)
     θsave = zeros(IT,N)
+    τsave = zeros(IT)
     θsave[1,:]  = θ
+    τsave[1] = τ
     acc = 0
     for i ∈ 2:IT
         randn!(znew)
         zᵒ .= ρ * z + ρc * znew
-        θᵒ, llᵒ = loglik!(θᵒ, τ, zᵒ, Lchol, ci)
+        θᵒ, llᵒ = loglik!(θᵒ, τ, zᵒ, Uinv, ci)
         if log(rand()) < llᵒ-ll
             z .= zᵒ
             θ .= θᵒ
             ll = llᵒ
             acc += 1
         end
-        #push!(θsave, θ)
         θsave[i,:]  = θ
+        τ = rand(InverseGamma(0.5N + 0.1, 0.5PDMats.quad(L, z) + 0.1))
+        τsave[i] = τ
     end
-    θsave, acc
+    @show "Average acceptance rate for pCN steps equals $(acc/IT)"
+    θsave, τsave, acc
 end
-
-IT = 10_000; BI = div(IT,2)
-ci = construct_censoringinfo(t, (binx,biny), ind_yknown, ind_yunknown)
-θsave, acc = pcn(ci,IT; τ=0.1)
-θ̄gl = [mean(x[BI:end]) for x ∈ eachcol(θsave)]
-acc/IT
-
-Plots.plot(θsave[:,3])
-Plots.plot(θsave[:,50])

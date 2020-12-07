@@ -67,7 +67,7 @@ function sample_dir(t,ind_yknown, y, (binx, biny), ITER; priorscale = 0.1)
                 fulldata = @set fulldata[k].iy = ind[2]
             end
         end
-        if mod(iter,50)==0
+        if mod(iter,250)==0
             println(iter)
         end
     end
