@@ -29,11 +29,13 @@ d
 th0 = θ0; thdir = θ̄dir; thgl = θ̄gl
 @rput th0 thdir thgl
 R"""
+library(transport)
 wdir = wasserstein1d(th0, thdir)
 wgl =  wasserstein1d(th0, thgl)
 """
 @rget wdir wgl
-println(wdir/wgl)
+@show ratio = round(wgl/wdir; digits=3)
+
 
 #----------------------------------------------------------------------------------------------
 # write observations to csv file
@@ -54,13 +56,15 @@ facc = open("./out/info.txt","w")
     write(facc, "Number of iterations: ",string(IT),"\n")
     write(facc, "Number of burnin iterations: ",string(BI),"\n")
 
-    write(facc, "Turing Sampler: ", string(sp),"\n")
-    write(facc, "Number of iterations for Turing: ",string(ITERgl),"\n")
-    write(facc, "Number of burnin iterations for Turing: ",string(BIgl),"\n")
-
+    if false
+        write(facc, "Turing Sampler: ", string(sp),"\n")
+        write(facc, "Number of iterations for Turing: ",string(ITERgl),"\n")
+        write(facc, "Number of burnin iterations for Turing: ",string(BIgl),"\n")
+    end
 
     write(facc, "Wasserstein distance binprobs Dirichlet: ", string(wdir),"\n")
-    write(facc, "Wasserstein distance binprobs Graph Laplacian: ", string(wgl),"\n\n")
+    write(facc, "Wasserstein distance binprobs Graph Laplacian: ", string(wgl),"\n")
+    write(facc, "Ratio: ", string(ratio), "\n\n")
 
     write(facc, "Parameter rho for pCN:", string(ρ), "\n")
     write(facc, "Fraction of accepted pCN steps: ", string(acc/IT),"\n")

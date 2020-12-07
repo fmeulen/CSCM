@@ -1,0 +1,14 @@
+Data choice: multimodal
+Sample size: 100
+Fraction in data with mark observed: 0.74
+
+Hyperpar Dirichlet prior: 0.1
+
+Number of iterations: 10000
+Number of burnin iterations: 3333
+Wasserstein distance binprobs Dirichlet: 0.0005220143914247786
+Wasserstein distance binprobs Graph Laplacian: 0.0003460840171942364
+Ratio: 0.663
+
+Parameter rho for pCN:0.95
+Fraction of accepted pCN steps: 0.3348
