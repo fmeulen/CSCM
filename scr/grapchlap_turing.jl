@@ -1,4 +1,11 @@
-mapsimolex(x) = softmax(x)
+# Turing implementation
+
+using Turing
+Turing.setadbackend(:zygote)
+using DynamicHMC
+using MCMCChains
+using Zygote
+
 
 @model GraphLaplacianMod(ci,L) = begin
     τ ~ InverseGamma(.1,.1)
@@ -7,7 +14,7 @@ mapsimolex(x) = softmax(x)
 end
 
 function loglik(H, ci)
-    θ = mapsimplex(H)
+    θ = softmax(H)
     ll = 0.0
     @inbounds for i ∈ eachindex(ci)
         γ = ci[i]
@@ -17,40 +24,32 @@ function loglik(H, ci)
 end
 
 """
-    sample_graphlap(t,ind_yknown, ind_yunknown, (binx, biny), ITER; alg=HMC(0.1, 5))
+    sample_graphlap(ci, (m, n), IT; alg=HMC(0.1, 5))
 
-t: observed times
-ind_yknown: vector of indices that correspond to those times in t where y is observed
-ind_yunknown: vector of indices that correspond to those times in t where y is unobserved
-y: vector of observed marks (elements corresponding to times where the mark y is not observed can be specified arbitrarily,
-for example z zero)
-binx: bin grid in x direction
-biny: bin grid in y direction
-alg: algorithm for sampling
+ci:: CensoringInfo
+(m, n): number of horizontal and vertical bins
+IT: number of iterations
 
-Returns:
-    ci, chn, τ, H, θ
-
-ci::CensoringInfo
+Returns
 chn::Chains
 τ: iterates
 H: iterates
 θ: iterates
 """
-function sample_graphlap(t,ind_yknown, ind_yunknown, (binx, biny), ITER; alg=HMC(0.1, 5))
+function sample_graphlap(ci, (m, n), IT; alg=HMC(0.1, 5))
     ci = construct_censoringinfo(t, (binx,biny), ind_yknown, ind_yunknown)
     # define model
     L = graphlaplacian(m,n) # graph Laplacian with τ=1
     model = GraphLaplacianMod(ci,L)
     # run sampler
-    chn = Turing.sample(model, alg, ITER)
+    chn = Turing.sample(model, alg, IT)
 
     # extracting H, θ, τ
     τ = chn[:,:τ,1].data
     H = chn.value[:,1:m*n,1]
-    θ = mapslices(mapsimplex, H,dims=2)
+    θ = mapslices(softmax, H,dims=2)
 
-    ci, chn, τ, H, θ
+    chn, τ, H, θ
 end
 
 function traceplots(chn)
@@ -66,3 +65,17 @@ function traceplots(chn)
     l = @layout [a b; c d]
     Plots.plot(p1, p2, p10, pτ, layout=l)
 end
+
+
+## functions calls, actual programme
+
+ITERgl = 5_000 # nr of iterations for GraphLaplacian prior
+BIgl = div(ITERgl,3) # nr of burnin iters
+bi_gl = BIgl:ITERgl
+samplers=[HMC(0.1, 5), HMC(0.2, 20), HMC(0.05,20),  DynamicNUTS()]
+sp = samplers[2]
+@time  chn, τ, H, θgl=  sample_graphlap(ci, (m,n), ITERgl; alg=sp)
+
+
+θ̄gl = vec(mean(θgl[bi_gl,:], dims=1))  # posterior mean graphlap using Turing
+p = traceplots(chn) # for Turing output

@@ -61,6 +61,6 @@ ggplot() +
 dev.off()
 
 
-
-
-trace %>% ggplot() + geom_path(aes(x=iterate,y=y)) + facet_wrap(~parameter, scales="free") + ylab("")
+pdf("./out/traceplotspcn.pdf",width=8, height=6)
+  trace %>% ggplot() + geom_path(aes(x=iterate,y=y)) + facet_wrap(~parameter, scales="free") + ylab("")
+dev.off()
