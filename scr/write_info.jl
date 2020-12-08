@@ -7,23 +7,26 @@
 
 p2 = Plots.scatter(t[ind_yknown],y[ind_yknown],
 color=:lightblue,label="y observed", legend=:outertopright)
-Plots.scatter!(p2, t[ind_yunknown], y[ind_yunknown],color=:pink,
+Pobs = Plots.scatter!(p2, t[ind_yunknown], y[ind_yunknown],color=:pink,
  label="y not observed", title = "Data",  xlabel="censoring time", ylabel="mark")
+savefig(Pobs, "./out/observations.pdf")
 
 # traceplots for pcn
 tr1 = Plots.plot(θsave[:,1], label="θ[1]")
 tr2 = Plots.plot(θsave[:,10], label="θ[10]")
 tr3 = Plots.plot(θsave[:,11], label="θ[11]")
-tr4 = Plots.plot(τsave, label="τ")
+tr4 = Plots.plot(log.(τsave), label="log(τ)")
 lay = @layout [a b; c d]
-Plots.plot(tr1, tr2, tr3, tr4, layout=lay)
+P = Plots.plot(tr1, tr2, tr3, tr4, layout=lay)
+
+savefig(P, "./out/traceplots_pcn.pdf")
+
 
 
 # true binprobs
 θ0, xx, yy = θtrue(truedatagen,binx,biny)
 d = DataFrame(ptrue = θ0, Dirichlet =θ̄dir, graphLaplacian = θ̄gl,  x=xx, y=yy)
 CSV.write("./out/binprobs.csv",d)
-d
 
 # compute Wasserstein distances
 th0 = θ0; thdir = θ̄dir; thgl = θ̄gl
@@ -36,15 +39,18 @@ wgl =  wasserstein1d(th0, thgl)
 @rget wdir wgl
 @show ratio = round(wgl/wdir; digits=3)
 
-
-#----------------------------------------------------------------------------------------------
 # write observations to csv file
 yobserved = fill("yes",nsample)
 yobserved[ind_yunknown] .= "no"
 d = DataFrame(x=x,y=y,t=t,yobserved=yobserved)
 CSV.write("./out/observations.csv",d)
 
-#----------------------------------------------------------------------------------------------
+# heatmaps
+heatmap(mean(θdir[bi]))
+heatmap(vec2mat(θ̄gl,m,n))
+heatmap(mean(θdir[bi]) - vec2mat(θ0,m,n))
+heatmap(vec2mat(θ̄gl-θ0,m,n))
+
 # write info to file
 facc = open("./out/info.txt","w")
     write(facc, "Data choice: ",truedatagen,"\n")
@@ -67,5 +73,7 @@ facc = open("./out/info.txt","w")
     write(facc, "Ratio: ", string(ratio), "\n\n")
 
     write(facc, "Parameter rho for pCN:", string(ρ), "\n")
-    write(facc, "Fraction of accepted pCN steps: ", string(acc/IT),"\n")
+    write(facc, "Fraction of accepted pCN steps: ", string(acc[1]/IT),"\n\n")
+
+    write(facc, "Fraction of accepted τ-update steps: ", string(acc[2]/IT),"\n")
 close(facc)

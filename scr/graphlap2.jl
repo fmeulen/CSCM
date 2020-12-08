@@ -1,20 +1,8 @@
-
-"""
-    mapsimplex(x)
-
-apply logistic funtion to each element of vector `x` and scale such that the
-elements sum to 1
-"""
-# function mapsimplex(x)
-#     y = logistic.(x)
-#     y/sum(y)
-# end
-
 mapsimolex(x) = softmax(x)
 
 @model GraphLaplacianMod(ci,L) = begin
     τ ~ InverseGamma(.1,.1)
-    H ~ MvNormalCanon(L*τ)
+    H ~ MvNormalCanon(L/τ)
     Turing.@addlogprob! loglik(H, ci)
 end
 
@@ -29,18 +17,27 @@ function loglik(H, ci)
 end
 
 """
-    t: observed times
-    ind_yknown: vector of indices that correspond to those times in t where y is observed
-    ind_yunknown: vector of indices that correspond to those times in t where y is unobserved
-    y: vector of observed marks (elements corresponding to times where the mark y is not observed can be specified arbitrarily,
-    for example z zero)
-    binx: bin grid in x direction
-    biny: bin grid in y direction
-    alg: algorithm for sampling
+    sample_graphlap(t,ind_yknown, ind_yunknown, (binx, biny), ITER; alg=HMC(0.1, 5))
 
-    ci::censoringinfo, chn::Chains
+t: observed times
+ind_yknown: vector of indices that correspond to those times in t where y is observed
+ind_yunknown: vector of indices that correspond to those times in t where y is unobserved
+y: vector of observed marks (elements corresponding to times where the mark y is not observed can be specified arbitrarily,
+for example z zero)
+binx: bin grid in x direction
+biny: bin grid in y direction
+alg: algorithm for sampling
+
+Returns:
+    ci, chn, τ, H, θ
+
+ci::CensoringInfo
+chn::Chains
+τ: iterates
+H: iterates
+θ: iterates
 """
-function sample_graphlap(t,ind_yknown, ind_yunknown, y, (binx, biny), ITER; alg=HMC(0.1, 5))
+function sample_graphlap(t,ind_yknown, ind_yunknown, (binx, biny), ITER; alg=HMC(0.1, 5))
     ci = construct_censoringinfo(t, (binx,biny), ind_yknown, ind_yunknown)
     # define model
     L = graphlaplacian(m,n) # graph Laplacian with τ=1

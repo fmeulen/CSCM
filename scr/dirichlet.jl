@@ -15,7 +15,7 @@ function sample_dir(t,ind_yknown, y, (binx, biny), ITER; priorscale = 0.1)
     m = length(binx) - 1
     n = length(biny) - 1
     counts = zeros(Int64,m,n)  # adjust at each iteration
-    fulldata = Vector{obs}(undef,nsample )  # adjust at each iteration
+    fulldata = Vector{obs}(undef,nsample)  # adjust at each iteration
 
     for k ∈ eachindex(t)
         it = indbin(t[k],binx)
@@ -72,6 +72,5 @@ function sample_dir(t,ind_yknown, y, (binx, biny), ITER; priorscale = 0.1)
         end
     end
 
-    # compute average of weights
     θ
 end
