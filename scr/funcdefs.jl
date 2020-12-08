@@ -16,7 +16,7 @@ indbin(x_,binx) = (x_>=binx[end]) ? error("bin does not exist") : findfirst(x ->
 
 Generate data for current status continuous mark model.
 """
-function gendata(truedatagen, N)  # θ is par for GaussianCopula copula
+function gendata(truedatagen, N; Ntest=10)
     t = sqrt.(rand(N))
     if truedatagen=="x+y"
         x = -0.5 .+ 0.5 *sqrt.(1 .+ 8*rand(N))
@@ -41,6 +41,29 @@ function gendata(truedatagen, N)  # θ is par for GaussianCopula copula
             y[i] = rand(rr(xi))
         end
     end
+    if truedatagen=="testcase"
+        bx_ = range(0.0, stop=1.0, length=Ntest)
+        by_ = range(0.0, stop=1.0, length=Ntest)
+        θ0 = zeros(Ntest,Ntest)
+        N1 = MvNormal([1., 2.]/ 3.0, 0.1*PDMat([0.2 0.0 ; 0.0 0.2]))
+        N2 = MvNormal([3., 1.]/ 4.0, 0.1*PDMat([0.2 0.0 ; 0.0 0.2]))
+        for i in 1:Ntest
+            for j in 1:Ntest
+                u = [bx_[i], by_[j]]
+                θ0[i,j] =  0.4 * pdf(N1,u) + 0.6 * pdf(N2,u)
+            end
+        end
+        w = wsample(1:(Ntest^2), vec(θ0) , N, replace=true)
+        vals = collect(1:Ntest)/Ntest
+        x = zeros(N)
+        y = zeros(N)
+        for i in 1:N
+            @show w[i]
+            ind = div(w[i],Ntest)
+            x[i] = vals[1+ind] + 0.01* randn()
+            y[i] = vals[1 + mod(w[i],Ntest)] + 0.01* randn()
+        end
+    end
     # find indices of case where x<t (y observed) and x>= t (y not observed)
     ind_yknown = findall(x.<t)
     ind_yunknown = findall(x.>=t)
@@ -51,7 +74,7 @@ end
 
 function Ftrue(x,y,truedatagen)
     if truedatagen=="uniform"
-        out = x+y
+        out = x*y
     end
     if truedatagen=="x+y"
         out = 0.5*x^2*y + 0.5*x*y^2
@@ -62,7 +85,7 @@ function Ftrue(x,y,truedatagen)
     if truedatagen=="multimodal"
         r = [Beta(3.0, 4.0),  Beta(10.0, 50.0), Beta(150.0, 50.0)]
         rr(x) = Beta(1.0+x, 6.0*(2.0-x))
-        out = cdf(r[1], x) * cdf(rr(x),y)
+        out = cdf(r[1], x) * cdf(rr(x),y) #FIXME wrong
         #out *= 0.5*cdf(r[2],y) + 0.5*cdf(r[3],y)
     end
     out

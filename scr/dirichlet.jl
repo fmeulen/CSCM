@@ -1,4 +1,4 @@
-struct obs{S<:Real, T<:Int} #FIXME need not be mutable.
+struct obs{S<:Real, T<:Int}
     t::S
     ix::T
     iy::T

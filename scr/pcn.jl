@@ -19,8 +19,8 @@ function loglik!(θ, τ, z,  Uinv, ci)
     θ, ll
 end
 
-function pcn(t,ind_yknown, y, (binx, biny), IT; ρ = 0.95, τinit = 1.0, δ=0.1, priorτ = InverseGamma(0.1,0.1))
-    ci = construct_censoringinfo(t, (binx,biny), ind_yknown, ind_yunknown)
+function pcn(t, ind_yknown, y, (binx, biny), IT; ρ = 0.95, τinit = 1.0, δ=0.1, priorτ = InverseGamma(0.1,0.1))
+    ci = construct_censoringinfo(t, y, (binx,biny), ind_yknown, ind_yunknown)
     m, n = length(binx) - 1, length(biny) - 1
     L = PDMat(graphlaplacian(m,n))
     Uinv = inv(L.chol.U)
@@ -84,13 +84,14 @@ struct CensoringInfo{S<:Number, T<:Number}
     ind::Vector{T}              # corresponding indices
 end
 
-function construct_censoringinfo(t, (binx,biny), ind_yknown, ind_yunknown)
+function construct_censoringinfo(t, y, (binx,biny), ind_yknown, ind_yunknown)
     nsample = length(t)
     m = length(binx) - 1
     n = length(biny) - 1
     # construct censoringinfo
     ci = Vector{CensoringInfo}(undef,nsample)
     for k ∈ ind_yknown
+        println(k)
         it = indbin(t[k],binx)
         iy = indbin(y[k],biny)
         fa =  [ (min(binx[i+1],t[k])-binx[i])/(binx[i+1]-binx[i]) for i ∈ 1:it]

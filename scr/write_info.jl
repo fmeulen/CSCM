@@ -1,15 +1,10 @@
-θ̄dir = mat2vec(mean(θdir[bi]))
+#θ̄dir = mat2vec(mean(θdir[bi]))
+θ̄dir = [mean(x[bi]) for x ∈ eachcol(θdir)]
 θ̄gl = [mean(x[bi]) for x ∈ eachcol(θsave)]
 
 #θ̄gl = vec(mean(θgl[bi_gl,:], dims=1))  # posterior mean graphlap using Turing
 #p = traceplots(chn) # for Turing output
 
-
-p2 = Plots.scatter(t[ind_yknown],y[ind_yknown],
-color=:lightblue,label="y observed", legend=:outertopright)
-Pobs = Plots.scatter!(p2, t[ind_yunknown], y[ind_yunknown],color=:pink,
- label="y not observed", title = "Data",  xlabel="censoring time", ylabel="mark")
-savefig(Pobs, "./out/observations.pdf")
 
 # traceplots for pcn
 tr1 = Plots.plot(θsave[:,1], label="θ[1]")
@@ -18,15 +13,19 @@ tr3 = Plots.plot(θsave[:,11], label="θ[11]")
 tr4 = Plots.plot(log.(τsave), label="log(τ)")
 lay = @layout [a b; c d]
 P = Plots.plot(tr1, tr2, tr3, tr4, layout=lay)
-
-savefig(P, "./out/traceplots_pcn.pdf")
-
+#savefig(P, "./out/traceplots_pcn.pdf")
+dtrace = DataFrame(iterate=1:IT,theta1=θsave[:,1], theta10=θsave[:,10], theta11=θsave[:,11], logtau=log.(τsave))
+CSV.write("./out/tracepcn.csv",dtrace)
 
 
 # true binprobs
 θ0, xx, yy = θtrue(truedatagen,binx,biny)
 d = DataFrame(ptrue = θ0, Dirichlet =θ̄dir, graphLaplacian = θ̄gl,  x=xx, y=yy)
 CSV.write("./out/binprobs.csv",d)
+
+distdir = norm(θ0 - θ̄dir,1)
+distgl = norm(θ0 - θ̄gl,1)
+@show distgl/distdir
 
 # compute Wasserstein distances
 th0 = θ0; thdir = θ̄dir; thgl = θ̄gl
@@ -46,9 +45,11 @@ d = DataFrame(x=x,y=y,t=t,yobserved=yobserved)
 CSV.write("./out/observations.csv",d)
 
 # heatmaps
-heatmap(mean(θdir[bi]))
+#heatmap(mean(θdir[bi]))
+heatmap(vec2mat(θ̄dir,m,n))
 heatmap(vec2mat(θ̄gl,m,n))
-heatmap(mean(θdir[bi]) - vec2mat(θ0,m,n))
+#heatmap(mean(θdir[bi]) - vec2mat(θ0,m,n))
+heatmap(vec2mat(θ̄dir-θ0,m,n))
 heatmap(vec2mat(θ̄gl-θ0,m,n))
 
 # write info to file
