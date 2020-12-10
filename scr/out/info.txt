@@ -1,10 +1,10 @@
-Data choice: (3/8)(x2+y)
+Data choice: Xplusy()
 Sample size: 100
-Fraction in data with mark observed: 0.57
+Fraction in data with mark observed: 0.63
 
-Number of iterations: 25000
-Number of burnin iterations: 8333
+Number of iterations: 2500
+Number of burnin iterations: 833
 Parameter rho for pCN:0.96
-Fraction of accepted pCN steps: 0.5796
+Fraction of accepted pCN steps: 0.7148
 
-Fraction of accepted τ-update steps: 0.62444
+Fraction of accepted τ-update steps: 0.74

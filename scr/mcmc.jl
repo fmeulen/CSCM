@@ -27,7 +27,7 @@ function construct_censoringinfo(t, y, (binx,biny), ind_yknown, ind_yunknown)
     ci
 end
 
-graphlaplacian(m,n) = Matrix(lap(grid2(m,n))) + I/(m*n)^2
+graphlaplacian(m,n; pow=1) = (Matrix(lap(grid2(m,n))) + I/(m*n)^2)^pow
 
 """
     dirichlet(ci, (m, n), IT; τinit = 1.0, δ=0.1, priorτ = InverseGamma(0.1,0.1))
@@ -40,8 +40,7 @@ Returns
 θsave, τsave, acc
 """
 
-function dirichlet(ci, (m, n), IT;
-            τinit = 1.0, δ=0.1, priorτ = InverseGamma(0.1,0.1))
+function dirichlet(ci, (m, n), IT, Πτ; τinit = 1.0, δ=0.1, printskip=5000)
     N = m*n
     # initialise counts of bins by random assignment
     counts_fulldata = zeros(N)
@@ -49,34 +48,44 @@ function dirichlet(ci, (m, n), IT;
         loc = rand(ci[i].ind)
         counts_fulldata[loc] += 1
     end
+
     τ = τinit
+    θ = rand(Dirichlet(counts_fulldata .+ τ))
+
     θsave = zeros(IT,N)
     τsave = zeros(IT)
-    θ = rand(Dirichlet( counts_fulldata .+ τ))
     τsave[1] = τ
-    θsave[1,:]  = θ
+    θsave[1,:] = θ
     acc = 0
+
     for it ∈ 2:IT
         # update counts
+        counts_fulldata .= zeros(N)
         for i ∈ eachindex(ci)
             γ = ci[i]
             loc = wsample(γ.ind, θ[γ.ind] .* γ.fracarea)
             counts_fulldata[loc] += 1
         end
         # update θ
-        θ = rand(Dirichlet( counts_fulldata .+ τ))
+        rand!(Dirichlet( counts_fulldata .+ τ), θ)
         θsave[it,:]  = θ
         # update τ
         τᵒ = τ * exp(δ*randn())
         A = logpdf(Dirichlet(N,τᵒ), θ)  -
             logpdf(Dirichlet(N,τ), θ) +
-            logpdf(priorτ, τᵒ) - logpdf(priorτ, τ) +
+            logpdf(Πτ, τᵒ) - logpdf(Πτ, τ) +
             log(τᵒ) - log(τ)
         if log(rand()) < A
             τ = τᵒ
             acc += 1
         end
         τsave[it] = τ
+
+        if mod(it,printskip)==0
+            frac_acc = round.(acc/it;digits=2)
+            @show (it, frac_acc)
+        end
+
 
 
     end
@@ -114,7 +123,7 @@ IT: number of iterations
 Returns
 θsave, τsave, acc, ρ
 """
-function pcn(ci, (m, n), IT; ρ = 0.95, τinit = 1.0, δ=0.1, priorτ = InverseGamma(0.1,0.1))
+function pcn(ci, (m, n), IT, Πτ; ρ = 0.95, τinit = 1.0, δ=0.1, printskip=5000)
 
     L = PDMat(graphlaplacian(m,n))
     Uinv = inv(L.chol.U)
@@ -135,7 +144,7 @@ function pcn(ci, (m, n), IT; ρ = 0.95, τinit = 1.0, δ=0.1, priorτ = InverseG
     θsave[1,:]  = θ
     τsave[1] = τ
     acc = [1, 1]
-    for i ∈ 2:IT
+    for it ∈ 2:IT
         # update z
         randn!(znew)
         zᵒ .= ρ * z + ρc * znew
@@ -146,13 +155,13 @@ function pcn(ci, (m, n), IT; ρ = 0.95, τinit = 1.0, δ=0.1, priorτ = InverseG
             ll = llᵒ
             acc[1] += 1
         end
-        θsave[i,:]  = θ
+        θsave[it,:]  = θ
 
         # update τ
         τᵒ = τ * exp(δ*randn())
         θᵒ, llᵒ = loglik!(θᵒ, τᵒ, z, Uinv, ci)
         A = sum(llᵒ) - sum(ll) +
-            logpdf(priorτ, τᵒ) - logpdf(priorτ, τ) +
+            logpdf(Πτ, τᵒ) - logpdf(Πτ, τ) +
             log(τᵒ) - log(τ)
         if log(rand()) < A
             τ = τᵒ
@@ -160,11 +169,11 @@ function pcn(ci, (m, n), IT; ρ = 0.95, τinit = 1.0, δ=0.1, priorτ = InverseG
             ll = llᵒ
             acc[2] += 1
         end
-        τsave[i] = τ
+        τsave[it] = τ
 
-        if mod(i,1000)==0
-            frac_acc = round.(acc/i;digits=2)
-            @show (i, frac_acc)
+        if mod(it,printskip)==0
+            frac_acc = round.(acc/it;digits=2)
+            @show (it, frac_acc)
         end
 
     end

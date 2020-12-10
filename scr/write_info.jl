@@ -16,7 +16,7 @@ CSV.write("./out/tracepcn.csv",dtrace)
 
 
 # true binprobs
-θ0, xx, yy = θtrue(truedatagen,binx,biny)
+θ0, xx, yy = θtrue(dist,binx,biny)
 d = DataFrame(ptrue = θ0, Dirichlet =θ̄dir, graphLaplacian = θ̄gl,  x=xx, y=yy)
 CSV.write("./out/binprobs.csv",d)
 
@@ -49,7 +49,7 @@ heatmap(vec2mat(θ̄gl-θ0,m,n))
 
 # write info to file
 facc = open("./out/info.txt","w")
-    write(facc, "Data choice: ",truedatagen,"\n")
+    write(facc, "Data choice: ",string(dist),"\n")
     write(facc, "Sample size: ", string(nsample), "\n")
     write(facc, "Fraction in data with mark observed: ",string(length(ind_yknown)/nsample),"\n\n")
 
