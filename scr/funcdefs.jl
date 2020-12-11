@@ -4,11 +4,12 @@ Example usage
     a =  reshape(1:6,2,3)
     vec2mat(mat2vec(a),2,3)-a
 """
-#mat2vec(x) = vec(x) # colunmwise filling
+mat2vec(x) = vec(x) # colunmwise filling
 vec2mat(x,m,n) = reshape(x,m,n)
 
 extractind(w,i) = map(x -> x[i],w)
-indbin(x_,binx) = (x_>=binx[end]) ? error("bin does not exist") : findfirst(x -> x > x_, binx) -1  # look up in which bin x_ is located
+
+indbin(x_,binx) = (x_ >= binx[end]) ? error("bin does not exist") : findfirst(x -> x > x_, binx) - 1  # look up in which bin x_ is located
 
 
 
@@ -24,6 +25,9 @@ struct Mixture <: GeneratingDistribution
     comp2::GeneratingDistribution
 end
 
+loss(x, c) = (x-c)^2
+err(dist::GeneratingDistribution, c) =  x -> loss(dens(dist,x), c)
+
 function gendata(::Xplusy, N)
         x = -0.5 .+ 0.5 *sqrt.(1 .+ 8*rand(N))
         y = -x .+ sqrt.(x.^2 .+ (2x .+ 1) .* rand(N))
@@ -31,6 +35,7 @@ function gendata(::Xplusy, N)
 end
 binprob(::Xplusy, xm, x, ym, y) =  0.5*(y-ym)*(x^2-xm^2) + 0.5*(x-xm)*(y^2-ym^2)
 support(::Xplusy) = [(0.0, 1.0), (0.0, 1.0)]
+dens(::Xplusy, x) = x[1] + x[2]
 
 
 function gendata(::Uniform2D, N)
@@ -38,6 +43,7 @@ function gendata(::Uniform2D, N)
 end
 binprob(::Uniform2D, xm, x, ym, y) = (x-xm)*(y-ym)
 support(::Uniform2D) = [(0.0, 1.0), (0.0, 1.0)]
+dens(::Uniform2D, x) = 1.0
 
 function gendata(::X2plusy, N)
     u = rand(N)
@@ -46,7 +52,9 @@ function gendata(::X2plusy, N)
     x, y
 end
 binprob(::X2plusy, xm, x, ym, y) = (3/8)*((y-ym)*(x^3 - xm^3)/3 + 0.5*(x-xm)*(y^2-ym^2))
-support(::X2plusy) = [(0.0, 2.0), (0.0, 1.0)]
+support(::X2plusy) = [(0.0, 1.0), (0.0, 2.0)]
+dens(::X2plusy, x) = (3/8)*(x[1]^2 + x[2])
+
 
 function gendata(dist::Mixture, N)
     u = rand(Bernoulli(dist.p), N)
@@ -55,7 +63,8 @@ function gendata(dist::Mixture, N)
     u .* x1 + (1 .- u) .* x2, u .* y1 + (1 .- u) .*y2
 end
 binprob(dist::Mixture, xm, x, ym, y) = dist.p * binprob(dist.comp1, xm, x, ym, y) + (1.0 - dist.p) * binprob(dist.comp2, xm, x, ym, y)
-support(::Xplusy) = [(0.0, 1.0), (0.0, 1.0)] #FIXME
+support(::Mixture) = [(0.0, 1.0), (0.0, 1.0)] #FIXME
+dens(::Mixture, x) = (3/8)*(x[1]^2 + x[2]) # FIXME
 
 function gendata(dist::XplusyRev,N)
     x, y = gendata(Xplusy(), N)
@@ -63,7 +72,7 @@ function gendata(dist::XplusyRev,N)
 end
 binprob(::XplusyRev, xm, x, ym, y) = binprob(Xplusy(), 1.0 - x, 1.0 - xm, 1.0 - y, 1.0 - ym)
 support(::XplusyRev) = [(0.0, 1.0), (0.0, 1.0)]
-
+dens(::XplusyRev) = @error "not implemented yet"
 
 function gencensdata(dist::GeneratingDistribution, N)
     x, y = gendata(dist,N)
@@ -208,19 +217,31 @@ Probabilities are stacked into a vector where the inner loop goes over the y-dir
 
 
 """
-Compare bin probabilities in pweights to true bin probabilities computed using true datagen
+    binprob(dist::GeneratingDistribution,bins)
+
+returns xvals, yvals and binvals, where binsvals is computed for distribution `dist`
 """
 function binprob(dist::GeneratingDistribution,bins)
     m, n, binx, biny = bins.m, bins.n, bins.binx, bins.biny
     xx = repeat(binx[2:end],inner=n)
     yy = repeat(biny[2:end],outer=m)
     out = Float64[]
-    for i in 1:m
-        for j in 1:n
+    for i in 1:m,  j in 1:n
             push!(out, binprob(dist, binx[i], binx[i+1], biny[j], biny[j+1]))
-        end
     end
     out, xx, yy
+end
+
+function binerror(dist::GeneratingDistribution, bins, θ̄)
+    m, n, binx, biny = bins.m, bins.n, bins.binx, bins.biny
+    c = vec2mat(θ̄,m,n)
+    out = Float64[]
+    for i in 1:m,  j in 1:n
+            push!(out, hcubature(err(dist,c[i,j]), [binx[i], binx[i+1]], [biny[j], biny[j+1]])[1] )
+
+    end
+    out
+
 end
 
 

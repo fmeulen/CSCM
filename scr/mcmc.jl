@@ -151,6 +151,6 @@ function pcn(ci, bins::Bins, IT, Πτ; ρ = 0.95, τinit = 1.0, δ=0.1, printski
         end
 
     end
-    @show "Fraction of accepted pCN steps equals: $(acc/IT)"
+    @show "Fraction of accepted pCN steps equals: " acc/IT
     θsave, τsave, acc, ρ
 end

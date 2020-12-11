@@ -6,14 +6,16 @@ using Laplacians
 using Plots
 using PDMats
 using FileIO
+using Cubature
 
 
 wd = @__DIR__
 cd(wd)
+mkpath("./out")
 include("funcdefs.jl")
 include("mcmc.jl")
 
-mkpath("./out")
+
 Random.seed!(1234)
 
 # Read data
@@ -21,7 +23,7 @@ dat = load("data1.jld2")
 ind_yunknown, t, nsample, x, dist, ind_yknown, y = dat["ind_yunknown"], dat["t"], dat["nsample"], dat["x"], dat["dist"], dat["ind_yknown"], dat["y"]
 
 # Compute bins
-bins = Bins(dist, 10, 20)
+bins = Bins(dist, 40, 40)
 
 # Combine observations to type CensoringInfo (note that y[ind_yunknown] can be anything)
 ci = construct_censoringinfo(t, y, ind_yknown, ind_yunknown, bins)

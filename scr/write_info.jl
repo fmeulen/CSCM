@@ -17,7 +17,10 @@ CSV.write("./out/tracepcn.csv",dtrace)
 
 # true binprobs
 θ0, xx, yy = binprob(dist,bins)
-d = DataFrame(ptrue = θ0, Dirichlet =θ̄dir, graphLaplacian = θ̄gl,  x=xx, y=yy)
+errdir = binerror(dist, bins, θ̄dir)
+errgl = binerror(dist, bins, θ̄gl)
+
+d = DataFrame(ptrue = θ0, Dirichlet = θ̄dir, graphLaplacian = θ̄gl, errordir = errdir, errorgl= errgl, x=xx, y=yy)
 CSV.write("./out/binprobs.csv",d)
 
 distdir = norm(θ0 - θ̄dir,1)

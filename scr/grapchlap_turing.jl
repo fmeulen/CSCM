@@ -36,10 +36,10 @@ chn::Chains
 H: iterates
 θ: iterates
 """
-function sample_graphlap(ci, (m, n), IT; alg=HMC(0.1, 5))
-    ci = construct_censoringinfo(t, (binx,biny), ind_yknown, ind_yunknown)
+function sample_graphlap(ci, bins::Bins, IT; alg=HMC(0.1, 5))
+    ci = construct_censoringinfo(t, y, ind_yknown, ind_yunknown, bins)
     # define model
-    L = graphlaplacian(m,n) # graph Laplacian with τ=1
+    L = graphlaplacian(bins.m,bins.n) # graph Laplacian with τ=1
     model = GraphLaplacianMod(ci,L)
     # run sampler
     chn = Turing.sample(model, alg, IT)
@@ -74,7 +74,7 @@ BIgl = div(ITERgl,3) # nr of burnin iters
 bi_gl = BIgl:ITERgl
 samplers=[HMC(0.1, 5), HMC(0.2, 20), HMC(0.05,20),  DynamicNUTS()]
 sp = samplers[2]
-@time  chn, τ, H, θgl=  sample_graphlap(ci, (m,n), ITERgl; alg=sp)
+@time  chn, τ, H, θgl=  sample_graphlap(ci, bins, ITERgl; alg=sp)
 
 
 θ̄gl = vec(mean(θgl[bi_gl,:], dims=1))  # posterior mean graphlap using Turing

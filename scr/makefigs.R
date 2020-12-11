@@ -83,3 +83,14 @@ D <- dd %>%     gather(key="estimate",value="probability",Dirichlet, graphLaplac
 p <- D %>%  ggplot(aes(x, y, fill=probability)) + geom_raster(hjust=0,vjust=0) + facet_wrap(~estimate)+
   scale_fill_gradient2() + xlab("") + ylab("") + theme(aspect.ratio=1) 
 p
+
+
+
+# error plot
+
+
+
+ dd %>%     gather(key="estimate",value="error",errordir, errorgl) %>%
+    ggplot(aes(x, y, fill=error)) + geom_raster(hjust=0,vjust=0) + facet_wrap(~estimate)+
+  scale_fill_gradient2() + xlab("") + ylab("") + theme(aspect.ratio=1) + ggtitle("Error")
+ 
