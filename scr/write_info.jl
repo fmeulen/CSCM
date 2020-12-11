@@ -16,24 +16,13 @@ CSV.write("./out/tracepcn.csv",dtrace)
 
 
 # true binprobs
-θ0, xx, yy = θtrue(dist,binx,biny)
+θ0, xx, yy = binprob(dist,bins)
 d = DataFrame(ptrue = θ0, Dirichlet =θ̄dir, graphLaplacian = θ̄gl,  x=xx, y=yy)
 CSV.write("./out/binprobs.csv",d)
 
 distdir = norm(θ0 - θ̄dir,1)
 distgl = norm(θ0 - θ̄gl,1)
 @show distgl/distdir
-
-# compute Wasserstein distances
-# th0 = θ0; thdir = θ̄dir; thgl = θ̄gl
-# @rput th0 thdir thgl
-# R"""
-# library(transport)
-# wdir = wasserstein1d(th0, thdir)
-# wgl =  wasserstein1d(th0, thgl)
-# """
-# @rget wdir wgl
-# @show ratio = round(wgl/wdir; digits=3)
 
 # write observations to csv file
 yobserved = fill("yes",nsample)
@@ -42,6 +31,7 @@ d = DataFrame(x=x,y=y,t=t,yobserved=yobserved)
 CSV.write("./out/observations.csv",d)
 
 # heatmaps
+m, n = bins.m, bins.n
 heatmap(vec2mat(θ̄dir,m,n))
 heatmap(vec2mat(θ̄gl,m,n))
 heatmap(vec2mat(θ̄dir-θ0,m,n))
@@ -53,6 +43,7 @@ facc = open("./out/info.txt","w")
     write(facc, "Sample size: ", string(nsample), "\n")
     write(facc, "Fraction in data with mark observed: ",string(length(ind_yknown)/nsample),"\n\n")
 
+    write(facc, "bin info", string(bins), "\n")
 
 
     write(facc, "Number of iterations: ",string(IT),"\n")

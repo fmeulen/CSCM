@@ -1,10 +1,11 @@
-Data choice: Xplusy()
+Data choice: Uniform2D()
 Sample size: 100
-Fraction in data with mark observed: 0.63
+Fraction in data with mark observed: 0.73
 
-Number of iterations: 2500
-Number of burnin iterations: 833
+bin infoBins{StepRangeLen{Float64,Base.TwicePrecision{Float64},Base.TwicePrecision{Float64}}}(10, 20, 0.0:0.1:1.0, 0.0:0.05:1.0)
+Number of iterations: 10000
+Number of burnin iterations: 3333
 Parameter rho for pCN:0.96
-Fraction of accepted pCN steps: 0.7148
+Fraction of accepted pCN steps: 0.8019
 
-Fraction of accepted τ-update steps: 0.74
+Fraction of accepted τ-update steps: 0.7924

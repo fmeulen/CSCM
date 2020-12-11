@@ -1,36 +1,9 @@
 # code to sample from the posterior for both the Dirichlet and logistic-Normal-graphLaplacina prior
 
-struct CensoringInfo{S<:Number, T<:Number}
-    fracarea::Vector{S}         # keep track of fraction of bin areas
-    ind::Vector{T}              # corresponding indices
-end
-
-function construct_censoringinfo(t, y, (binx,biny), ind_yknown, ind_yunknown)
-    nsample = length(t)
-    m = length(binx) - 1
-    n = length(biny) - 1
-    # construct censoringinfo
-    ci = Vector{CensoringInfo}(undef,nsample)
-    for k ∈ ind_yknown
-        it = indbin(t[k],binx)
-        iy = indbin(y[k],biny)
-        fa =  [ (min(binx[i+1],t[k])-binx[i])/(binx[i+1]-binx[i]) for i ∈ 1:it]
-        ind = [iy + ℓ*n for ℓ ∈ 0:(it-1)]
-        ci[k] = CensoringInfo(fa, ind)
-    end
-    for k ∈ ind_yunknown
-        it = indbin(t[k],binx)
-        fa = [(binx[i+1]-max(t[k],binx[i]))/(binx[i+1] - binx[i])  for i ∈ it:m for j ∈ 1:n]
-        ind = collect(((it-1)*n+1):(m*n))
-        ci[k] = CensoringInfo(fa,ind)
-    end
-    ci
-end
-
 graphlaplacian(m,n; pow=1) = (Matrix(lap(grid2(m,n))) + I/(m*n)^2)^pow
 
 """
-    dirichlet(ci, (m, n), IT; τinit = 1.0, δ=0.1, priorτ = InverseGamma(0.1,0.1))
+    dirichlet(ci, bins::Bins, IT; τinit = 1.0, δ=0.1, priorτ = InverseGamma(0.1,0.1))
 
 ci:: CensoringInfo
 (m, n): number of horizontal and vertical bins
@@ -40,7 +13,8 @@ Returns
 θsave, τsave, acc
 """
 
-function dirichlet(ci, (m, n), IT, Πτ; τinit = 1.0, δ=0.1, printskip=5000)
+function dirichlet(ci, bins::Bins, IT, Πτ; τinit = 1.0, δ=0.1, printskip=5000)
+    m, n = bins.m, bins.n
     N = m*n
     # initialise counts of bins by random assignment
     counts_fulldata = zeros(N)
@@ -114,7 +88,7 @@ function loglik!(θ, τ, z,  Uinv, ci)
 end
 
 """
-    pcn(ci, (m, n), IT; ρ = 0.95, τinit = 1.0, δ=0.1, priorτ = InverseGamma(0.1,0.1))
+    pcn(ci, bins::Bins, IT; ρ = 0.95, τinit = 1.0, δ=0.1, priorτ = InverseGamma(0.1,0.1))
 
 ci:: CensoringInfo
 (m, n): number of horizontal and vertical bins
@@ -123,8 +97,8 @@ IT: number of iterations
 Returns
 θsave, τsave, acc, ρ
 """
-function pcn(ci, (m, n), IT, Πτ; ρ = 0.95, τinit = 1.0, δ=0.1, printskip=5000)
-
+function pcn(ci, bins::Bins, IT, Πτ; ρ = 0.95, τinit = 1.0, δ=0.1, printskip=5000)
+    m, n = bins.m, bins.n
     L = PDMat(graphlaplacian(m,n))
     Uinv = inv(L.chol.U)
 
