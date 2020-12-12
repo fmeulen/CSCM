@@ -7,6 +7,7 @@ nsample = 100
 
 
 dist = X2plusy()
+#dist = Uniform2D()
 x, y, t, ind_yknown, ind_yunknown = gencensdata(dist, nsample)
 
 

@@ -16,52 +16,26 @@ dd <- read_csv(paste0(wd,"/out/binprobs.csv"))
 obs <- read_csv("out/observations.csv")
 trace <- read.csv("out/tracepcn.csv") %>% gather(key="parameter", value="y", theta1, theta10,theta11,logtau)
 
+p <-dd %>%  ggplot(aes(x, y, fill=value)) + geom_raster(hjust=0,vjust=0) + facet_wrap(~method)+
+  scale_fill_gradient2() + xlab("") + ylab("") + theme(aspect.ratio=1) #+ ggtitle("Error")
+p
 
-d <- dd %>%     gather(key="estimate",value="probability",Dirichlet, graphLaplacian) %>%
-  mutate(error = ptrue-probability, relerror=error/ptrue)
-p <-d %>%  ggplot(aes(x, y, fill=error)) + geom_raster(hjust=0,vjust=0) + facet_wrap(~estimate)+
-   scale_fill_gradient2() + xlab("") + ylab("") + theme(aspect.ratio=1) + ggtitle("Error")
-p  
-pdf("./out/binproberror.pdf",width=8,height=4)
+p_loss <- dd %>% filter(method %in% c("D","LNGL")) %>%  ggplot(aes(x, y, fill=loss)) + geom_raster(hjust=0,vjust=0) + facet_wrap(~method)+
+  scale_fill_gradient2() + xlab("") + ylab("") + theme(aspect.ratio=1) #+ ggtitle("Error")
+p_loss
+
+
+
+pdf("./out/postmean.pdf",width=8,height=4)
   show(p)
 dev.off()
 
-d %>%  ggplot(aes(x, y, fill=relerror)) + geom_raster(hjust=0,vjust=0) + 
-  facet_wrap(~estimate)+
-  scale_fill_gradient2() + xlab("") + ylab("") + theme(aspect.ratio=1) + ggtitle("Relative error")
-
-d %>% group_by(estimate) %>% summarise(mrelerr=mean(relerror))
-
-dd %>% mutate(relerr = abs((Dirichlet-ptrue)/(graphLaplacian-ptrue))-1) %>%
-  ggplot(aes(x, y, fill=relerr)) + geom_raster(hjust=0,vjust=0) +scale_fill_gradient2() + xlab("") +
-  ylab("") + theme(aspect.ratio=1) + ggtitle("Ratio of relative errors")
-
-
-p2a <-d %>%  filter(estimate=="Dirichlet") %>% ggplot(aes(x, y, fill=error)) + geom_raster(hjust=0,vjust=0)+
-  scale_fill_gradient2() + ggtitle("Dirichlet") + xlab("") + ylab("") + theme(aspect.ratio=1)
-
-p2b <- d %>%  filter(estimate=="graphLaplacian") %>%ggplot(aes(x, y, fill=error)) + geom_raster(hjust=0,vjust=0)+
-       scale_fill_gradient2() + ggtitle("graphLaplacian")+ xlab("") + ylab("") + theme(aspect.ratio=1)
-grid.arrange(p2a,p2b, ncol=2)
-
-
-
-pdf("./out/binproberror2.pdf",width=8,height=4)
-grid.arrange(p2a,p2b, ncol=2)
+pdf("./out/losspostmean.pdf",width=8,height=4)
+show(p_loss)
 dev.off()
 
-
-p3a <-d %>%  filter(estimate=="Dirichlet") %>% ggplot(aes(x, y, fill=probability)) + geom_raster(hjust=0,vjust=0) +
-  scale_fill_gradient2() + ggtitle("Dirichlet") + xlab("") + ylab("") + theme(aspect.ratio=1)
-
-p3b <- d %>%  filter(estimate=="graphLaplacian") %>%ggplot(aes(x, y, fill=probability)) + geom_raster(hjust=0,vjust=0)+
-  scale_fill_gradient2() + ggtitle("graphLaplacian")+ xlab("") + ylab("") + theme(aspect.ratio=1)
-grid.arrange(p3a,p3b, ncol=2)
-
-
-# to superimpose points to geom_tile, asthetics need to have the same name, so to plot t, it needs to be renamed x (confusing, so first drop x)
-# obs2 <- obs %>% select(-x) %>% mutate(x=t)
-p4 <- ggplot() +geom_raster(data=d,aes(x=x,y=y,fill=ptrue),hjust=0,vjust=0)  +
+ddtrue <- dd %>% filter(method=='true')
+p4 <- ggplot() +geom_raster(data=ddtrue,aes(x=x,y=y,fill=value),hjust=0,vjust=0)  +
   geom_point(data=obs, aes(x=t, y=y, colour=yobserved), size=1.1) +
   scale_fill_gradient2() +
   ggtitle("true bin probabilities and observations")+
@@ -77,20 +51,3 @@ pdf("./out/traceplotspcn.pdf",width=8, height=6)
 p5  
 dev.off()
 
-
-D <- dd %>%     gather(key="estimate",value="probability",Dirichlet, graphLaplacian, ptrue) 
-  
-p <- D %>%  ggplot(aes(x, y, fill=probability)) + geom_raster(hjust=0,vjust=0) + facet_wrap(~estimate)+
-  scale_fill_gradient2() + xlab("") + ylab("") + theme(aspect.ratio=1) 
-p
-
-
-
-# error plot
-
-
-
- dd %>%     gather(key="estimate",value="error",errordir, errorgl) %>%
-    ggplot(aes(x, y, fill=error)) + geom_raster(hjust=0,vjust=0) + facet_wrap(~estimate)+
-  scale_fill_gradient2() + xlab("") + ylab("") + theme(aspect.ratio=1) + ggtitle("Error")
- 

@@ -5,14 +5,13 @@ graphlaplacian(m,n; pow=1) = (Matrix(lap(grid2(m,n))) + I/(m*n)^2)^pow
 """
     dirichlet(ci, bins::Bins, IT; τinit = 1.0, δ=0.1, priorτ = InverseGamma(0.1,0.1))
 
-ci:: CensoringInfo
-(m, n): number of horizontal and vertical bins
+ci:: CensoringInfo (contains info on the observations)
+bins:: Bins (contains info on the bins)
 IT: number of iterations
 
-Returns
+Returns:
 θsave, τsave, acc
 """
-
 function dirichlet(ci, bins::Bins, IT, Πτ; τinit = 1.0, δ=0.1, printskip=5000)
     m, n = bins.m, bins.n
     N = m*n
@@ -56,12 +55,9 @@ function dirichlet(ci, bins::Bins, IT, Πτ; τinit = 1.0, δ=0.1, printskip=500
         τsave[it] = τ
 
         if mod(it,printskip)==0
-            frac_acc = round.(acc/it;digits=2)
-            @show (it, frac_acc)
+            frac_accepted = round.(acc/it;digits=2)
+            @show (it, frac_accepted)
         end
-
-
-
     end
     θsave, τsave, acc
 end
@@ -69,17 +65,17 @@ end
 
 
 """
-    loglik!(θ, τ, z,  Uinv, ci)
+    loglik!(θ, τ, z,  Uinv, ci, Πτ)
 
-Computes θ and loglikelihood for (τ,z)
+Computes θ and the sum of the logprior and loglikelihood for (τ,z)
 θ is written into
 
 Uinv = inv(L.chol.U), where L is the graphLaplacian matrix
 ci::CensoringInfo contains information on the observations
 """
-function loglik!(θ, τ, z,  Uinv, ci)
+function loglik!(θ, τ, z,  Uinv, ci, Πτ)
     softmax!(θ, Uinv * z * √τ)
-    ll = 0.0
+    ll = logpdf(Πτ, τ)
     @inbounds for i ∈ eachindex(ci)
         γ = ci[i]
         ll += log(dot(θ[γ.ind], γ.fracarea))
@@ -90,11 +86,11 @@ end
 """
     pcn(ci, bins::Bins, IT; ρ = 0.95, τinit = 1.0, δ=0.1, priorτ = InverseGamma(0.1,0.1))
 
-ci:: CensoringInfo
-(m, n): number of horizontal and vertical bins
+ci:: CensoringInfo (contains info on the observations)
+bins:: Bins (contains info on the bins)
 IT: number of iterations
 
-Returns
+Returns:
 θsave, τsave, acc, ρ
 """
 function pcn(ci, bins::Bins, IT, Πτ; ρ = 0.95, τinit = 1.0, δ=0.1, printskip=5000)
@@ -105,14 +101,14 @@ function pcn(ci, bins::Bins, IT, Πτ; ρ = 0.95, τinit = 1.0, δ=0.1, printski
     N = m*n
     z = randn(N)
     τ = τinit
-    θ, ll = loglik!(zeros(N), τ, z, Uinv, ci)
+    θ, ll = loglik!(zeros(N), τ, z, Uinv, ci, Πτ)
 
     # cache arrays
     zᵒ = zeros(N)
     znew = zeros(N)
     θᵒ = zeros(N)
 
-    ρc = sqrt(1.0-ρ^2)
+    ρc = sqrt(1.0 - ρ^2)
     θsave = zeros(IT,N)
     τsave = zeros(IT)
     θsave[1,:]  = θ
@@ -122,7 +118,7 @@ function pcn(ci, bins::Bins, IT, Πτ; ρ = 0.95, τinit = 1.0, δ=0.1, printski
         # update z
         randn!(znew)
         zᵒ .= ρ * z + ρc * znew
-        θᵒ, llᵒ = loglik!(θᵒ, τ, zᵒ, Uinv, ci)
+        θᵒ, llᵒ = loglik!(θᵒ, τ, zᵒ, Uinv, ci, Πτ)
         if log(rand()) < llᵒ-ll
             z .= zᵒ
             θ .= θᵒ
@@ -132,11 +128,9 @@ function pcn(ci, bins::Bins, IT, Πτ; ρ = 0.95, τinit = 1.0, δ=0.1, printski
         θsave[it,:]  = θ
 
         # update τ
-        τᵒ = τ * exp(δ*randn())
-        θᵒ, llᵒ = loglik!(θᵒ, τᵒ, z, Uinv, ci)
-        A = sum(llᵒ) - sum(ll) +
-            logpdf(Πτ, τᵒ) - logpdf(Πτ, τ) +
-            log(τᵒ) - log(τ)
+        τᵒ = τ * exp(δ * randn())
+        θᵒ, llᵒ = loglik!(θᵒ, τᵒ, z, Uinv, ci, Πτ)
+        A = llᵒ - ll + log(τᵒ) - log(τ)
         if log(rand()) < A
             τ = τᵒ
             θ .= θᵒ
@@ -149,7 +143,6 @@ function pcn(ci, bins::Bins, IT, Πτ; ρ = 0.95, τinit = 1.0, δ=0.1, printski
             frac_acc = round.(acc/it;digits=2)
             @show (it, frac_acc)
         end
-
     end
     @show "Fraction of accepted pCN steps equals: " acc/IT
     θsave, τsave, acc, ρ

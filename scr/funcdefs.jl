@@ -7,11 +7,10 @@ Example usage
 mat2vec(x) = vec(x) # colunmwise filling
 vec2mat(x,m,n) = reshape(x,m,n)
 
-extractind(w,i) = map(x -> x[i],w)
+extractind(w,i) = map(x -> x[i], w)
 
-indbin(x_,binx) = (x_ >= binx[end]) ? error("bin does not exist") : findfirst(x -> x > x_, binx) - 1  # look up in which bin x_ is located
-
-
+# look up in which bin y is located using
+indbin(y, bin) = (y >= bin[end]) ? error("bin does not exist") : findfirst(x -> x > y, bin) - 1
 
 abstract type GeneratingDistribution end
 
@@ -64,7 +63,7 @@ function gendata(dist::Mixture, N)
 end
 binprob(dist::Mixture, xm, x, ym, y) = dist.p * binprob(dist.comp1, xm, x, ym, y) + (1.0 - dist.p) * binprob(dist.comp2, xm, x, ym, y)
 support(::Mixture) = [(0.0, 1.0), (0.0, 1.0)] #FIXME
-dens(::Mixture, x) = (3/8)*(x[1]^2 + x[2]) # FIXME
+dens(dist::Mixture, x) = dis.p * dens(dist.comp1, x) +(1.0 - dist.p) * dens(dist.comp2, x)
 
 function gendata(dist::XplusyRev,N)
     x, y = gendata(Xplusy(), N)
@@ -99,6 +98,65 @@ function Bins(dist::GeneratingDistribution, m, n)
     biny = range(𝒮[2][1], stop=𝒮[2][2], length=n+1)
     Bins(m, n, binx, biny)
 end
+
+
+
+
+"""
+    binprob(dist::GeneratingDistribution,bins)
+
+returns xvals, yvals and binvals, where binsvals is computed for distribution `dist`
+"""
+function binprob(dist::GeneratingDistribution,bins)
+    m, n, binx, biny = bins.m, bins.n, bins.binx, bins.biny
+    xx = repeat(binx[2:end],inner=n)
+    yy = repeat(biny[2:end],outer=m)
+    out = Float64[]
+    for i in 1:m,  j in 1:n
+        push!(out, binprob(dist, binx[i], binx[i+1], biny[j], biny[j+1]))
+    end
+    out, xx, yy
+end
+
+function binerror(dist::GeneratingDistribution, bins, θ)
+    m, n, binx, biny = bins.m, bins.n, bins.binx, bins.biny
+    c = vec2mat(θ,m,n)
+    out = Float64[]
+    for i in 1:m,  j in 1:n
+        area = (binx[i+1]-binx[i]) * (biny[j+1] - biny[j])
+        push!(out, hcubature(err(dist,c[i,j]/area), [binx[i], biny[j]], [binx[i+1], biny[j+1]])[1] )
+    end
+    out
+end
+
+struct CensoringInfo{S<:Number, T<:Number}
+    fracarea::Vector{S}         # keep track of fraction of bin areas
+    ind::Vector{T}              # corresponding indices
+end
+
+function construct_censoringinfo(t, y, ind_yknown, ind_yunknown, bins)
+    m, n, binx, biny = bins.m, bins.n, bins.binx, bins.biny
+    nsample = length(t)
+    # construct censoringinfo
+    ci = Vector{CensoringInfo}(undef,nsample)
+    for k ∈ ind_yknown
+        it = indbin(t[k],binx)
+        iy = indbin(y[k],biny)
+        fa =  [ (min(binx[i+1],t[k])-binx[i])/(binx[i+1]-binx[i]) for i ∈ 1:it]
+        ind = [iy + ℓ*n for ℓ ∈ 0:(it-1)]
+        ci[k] = CensoringInfo(fa, ind)
+    end
+    for k ∈ ind_yunknown
+        it = indbin(t[k],binx)
+        fa = [(binx[i+1]-max(t[k],binx[i]))/(binx[i+1] - binx[i])  for i ∈ it:m for j ∈ 1:n]
+        ind = collect(((it-1)*n+1):(m*n))
+        ci[k] = CensoringInfo(fa,ind)
+    end
+    ci
+end
+
+
+
 
 
 
@@ -212,62 +270,3 @@ Probabilities are stacked into a vector where the inner loop goes over the y-dir
 #     θ0 = binprobtrue(dist, binx,biny)
 #     θ0, xx, yy
 # end
-
-
-
-
-"""
-    binprob(dist::GeneratingDistribution,bins)
-
-returns xvals, yvals and binvals, where binsvals is computed for distribution `dist`
-"""
-function binprob(dist::GeneratingDistribution,bins)
-    m, n, binx, biny = bins.m, bins.n, bins.binx, bins.biny
-    xx = repeat(binx[2:end],inner=n)
-    yy = repeat(biny[2:end],outer=m)
-    out = Float64[]
-    for i in 1:m,  j in 1:n
-            push!(out, binprob(dist, binx[i], binx[i+1], biny[j], biny[j+1]))
-    end
-    out, xx, yy
-end
-
-function binerror(dist::GeneratingDistribution, bins, θ̄)
-    m, n, binx, biny = bins.m, bins.n, bins.binx, bins.biny
-    c = vec2mat(θ̄,m,n)
-    out = Float64[]
-    for i in 1:m,  j in 1:n
-            push!(out, hcubature(err(dist,c[i,j]), [binx[i], binx[i+1]], [biny[j], biny[j+1]])[1] )
-
-    end
-    out
-
-end
-
-
-
-struct CensoringInfo{S<:Number, T<:Number}
-    fracarea::Vector{S}         # keep track of fraction of bin areas
-    ind::Vector{T}              # corresponding indices
-end
-
-function construct_censoringinfo(t, y, ind_yknown, ind_yunknown, bins)
-    m, n, binx, biny = bins.m, bins.n, bins.binx, bins.biny
-    nsample = length(t)
-    # construct censoringinfo
-    ci = Vector{CensoringInfo}(undef,nsample)
-    for k ∈ ind_yknown
-        it = indbin(t[k],binx)
-        iy = indbin(y[k],biny)
-        fa =  [ (min(binx[i+1],t[k])-binx[i])/(binx[i+1]-binx[i]) for i ∈ 1:it]
-        ind = [iy + ℓ*n for ℓ ∈ 0:(it-1)]
-        ci[k] = CensoringInfo(fa, ind)
-    end
-    for k ∈ ind_yunknown
-        it = indbin(t[k],binx)
-        fa = [(binx[i+1]-max(t[k],binx[i]))/(binx[i+1] - binx[i])  for i ∈ it:m for j ∈ 1:n]
-        ind = collect(((it-1)*n+1):(m*n))
-        ci[k] = CensoringInfo(fa,ind)
-    end
-    ci
-end

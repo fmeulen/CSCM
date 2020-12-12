@@ -23,23 +23,25 @@ dat = load("data1.jld2")
 ind_yunknown, t, nsample, x, dist, ind_yknown, y = dat["ind_yunknown"], dat["t"], dat["nsample"], dat["x"], dat["dist"], dat["ind_yknown"], dat["y"]
 
 # Compute bins
-bins = Bins(dist, 40, 40)
+bins = Bins(dist, 10, 20)
 
 # Combine observations to type CensoringInfo (note that y[ind_yunknown] can be anything)
 ci = construct_censoringinfo(t, y, ind_yknown, ind_yunknown, bins)
 
-IT = 10_000 # nr of iterations for Dirichlet prior
+IT = 20_000 # nr of iterations for Dirichlet prior
 BI = div(IT,3) # nr of burnin iters
 bi = BI:IT
 
 # Prior on τ
-Πτ = Exponential(1.0)
+Πdirτ = Uniform(0.01, 1.0)
+Πτ = Gamma(2.0, 10.0)
 
 # Dirichlet prior
-@time θdir, τdir, accdir = dirichlet(ci, bins, IT, Πτ)
+@time θdir, τdir, accdir = dirichlet(ci, bins, IT, Πdirτ)
 @show accdir/IT
 
-# Pcn for Laplacian prior
+# pCN for Laplacian prior
+Πτ = Exponential(.1)
 @time θgl, τgl, accgl, ρ = pcn(ci, bins, IT, Πτ; ρ=.96, δ=0.6)
 @show accgl/IT
 
