@@ -15,26 +15,25 @@ mkpath("./out")
 include("funcdefs.jl")
 include("mcmc.jl")
 
-
-Random.seed!(1234)
+#Random.seed!(1234)
 
 # Read data
 dat = load("data1.jld2")
-ind_yunknown, t, nsample, x, dist, ind_yknown, y = dat["ind_yunknown"], dat["t"], dat["nsample"], dat["x"], dat["dist"], dat["ind_yknown"], dat["y"]
+ind_yunknown, t, nsample, x, dist, ind_yknown, y =
+                dat["ind_yunknown"], dat["t"], dat["nsample"], dat["x"], dat["dist"], dat["ind_yknown"], dat["y"]
 
 # Compute bins
-bins = Bins(dist, 10, 20)
+bins = Bins(dist, 25, 50)
 
 # Combine observations to type CensoringInfo (note that y[ind_yunknown] can be anything)
 ci = construct_censoringinfo(t, y, ind_yknown, ind_yunknown, bins)
 
-IT = 20_000 # nr of iterations for Dirichlet prior
+IT = 10_000 # nr of iterations for Dirichlet prior
 BI = div(IT,3) # nr of burnin iters
 bi = BI:IT
 
 # Prior on τ
-Πdirτ = Uniform(0.01, 1.0)
-Πτ = Gamma(2.0, 10.0)
+Πdirτ = Exponential(1.0)   #Uniform(0.01, 1.0)
 
 # Dirichlet prior
 @time θdir, τdir, accdir = dirichlet(ci, bins, IT, Πdirτ)

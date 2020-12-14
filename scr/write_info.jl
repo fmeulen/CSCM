@@ -40,13 +40,14 @@ d = DataFrame(x=x,y=y,t=t,yobserved=yobserved)
 CSV.write("./out/observations.csv",d)
 
 # heatmaps
-m, n = bins.m, bins.n
-heatmap(vec2mat(θ0,m,n))
-heatmap(vec2mat(θ̄dir,m,n))
-heatmap(vec2mat(errdir,m,n))
+xs = [string("x", i) for i = 1:bins.m]
+ys = [string("y", i) for i = 1:bins.n]
+h1 = heatmap(xs, ys, reshape(θ0, bins.n, bins.m),title="true")
+h2 = heatmap(xs, ys, reshape(θ̄dir, bins.n, bins.m),title="D")
+h3 = heatmap(xs, ys, reshape(θ̄gl, bins.n, bins.m),title="LNGL")
+l = @layout [a; b; c]
+plot(h1,h2,h3,layout = l)
 
-heatmap(vec2mat(θ̄gl,m,n))
-heatmap(vec2mat(errgl,m,n))
 
 # write info to file
 facc = open("./out/info.txt","w")
@@ -77,26 +78,60 @@ facc = open("./out/info.txt","w")
 close(facc)
 
 
-function wasserstein(θ̄gl, θ̄dir, θ0, bins::Bins; p=1)
-    m, n = bins.m, bins.n
+# function wasserstein(θ̄gl, θ̄dir, θ0, bins::Bins; p=1)
+#     m, n = bins.m, bins.n
+#     thgl = θ̄gl
+#     thdir = θ̄dir
+#     th0 = θ0
+#     @rput thgl thdir th0 m n p
+#     R"""
+#     library(transport)
+#     gl <- pp(matrix(thgl, m, n ))
+#     d <- pp(matrix(thdir, m, n))
+#     truepar <- pp(matrix(th0, m, n))
+#     was_gl <- wasserstein(gl,truepar,p=p)
+#     was_dir <- wasserstein(d,truepar,p=p)
+#     """
+#     @rget was_gl was_dir
+#     was_dir, was_gl
+# end
+#
+#
+# 𝒲dir, 𝒲gl = wasserstein(θ̄gl, θ̄dir, θ0, bins::Bins; p=1)
+# using Printf
+# @printf("𝒲dir = %E \n", 𝒲dir)
+# @printf("𝒲gl = %E", 𝒲gl)
+# @show  𝒲gl/𝒲dir
+
+
+## right way to do it:
+function wasserstein(θ̄dir, θ̄gl, θ0, bins::Bins; p=1)
+    points_x = [mean(bins.binx[i:i+1]) for i ∈ 1:bins.m]
+    points_y = [mean(bins.biny[i:i+1]) for i ∈ 1:bins.n]
+    out = [[u, v] for u in points_x for v in points_y]
+    coordmat = zeros(bins.m*bins.n, 2)
+    for i in eachindex(out)
+        coordmat[i,:] = out[i]
+    end
+
     thgl = θ̄gl
     thdir = θ̄dir
     th0 = θ0
-    @rput thgl thdir th0 m n p
+    @rput thgl thdir th0 m n coordmat p
     R"""
     library(transport)
-    gl <- pp(matrix(thgl, m, n ))
-    d <- pp(matrix(thdir, m, n))
-    truepar <- pp(matrix(th0, m, n))
-    was_gl <- wasserstein(gl,truepar,p=p)
-    was_dir <- wasserstein(d,truepar,p=p)
+    gl = wpp(coordmat, thgl)
+    dir = wpp(coordmat, thdir)
+    tr0 = wpp(coordmat, th0)
+    was_dir = wasserstein(dir, tr0, p=p)
+    was_gl = wasserstein(gl, tr0, p=p)
     """
     @rget was_gl was_dir
     was_dir, was_gl
 end
 
 
-𝒲dir, 𝒲gl = wasserstein(θ̄gl, θ̄dir, θ0, bins::Bins; p=1)
+𝒲dir,  𝒲gl = wasserstein(θ̄dir, θ̄gl, θ0, bins)
 using Printf
 @printf("𝒲dir = %E \n", 𝒲dir)
 @printf("𝒲gl = %E", 𝒲gl)

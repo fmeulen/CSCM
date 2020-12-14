@@ -16,8 +16,8 @@ dd <- read_csv(paste0(wd,"/out/binprobs.csv"))
 obs <- read_csv("out/observations.csv")
 trace <- read.csv("out/tracepcn.csv") %>% gather(key="parameter", value="y", theta1, theta10,theta11,logtau)
 
-p <-dd %>%  ggplot(aes(x, y, fill=value)) + geom_raster(hjust=0,vjust=0) + facet_wrap(~method)+
-  scale_fill_gradient2() + xlab("") + ylab("") + theme(aspect.ratio=1) #+ ggtitle("Error")
+p <-dd %>%  ggplot(aes(x, y, fill=value)) + geom_raster(hjust=0,vjust=0) + facet_wrap(~method, scales="free")+
+  scale_fill_gradient(low="lightblue", high="black") + xlab("") + ylab("") + theme(aspect.ratio=2/1) #+ ggtitle("Error")
 p
 
 p_loss <- dd %>% filter(method %in% c("D","LNGL")) %>%  ggplot(aes(x, y, fill=loss)) + geom_raster(hjust=0,vjust=0) + facet_wrap(~method)+
@@ -40,7 +40,7 @@ p4 <- ggplot() +geom_raster(data=ddtrue,aes(x=x,y=y,fill=value),hjust=0,vjust=0)
   scale_fill_gradient2() +
   ggtitle("true bin probabilities and observations")+
   xlab("") + ylab("") + theme(aspect.ratio=1)
-
+p4
 pdf("./out/obs.pdf",width=5,height=5)
 p4   
 dev.off()

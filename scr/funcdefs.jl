@@ -18,6 +18,7 @@ struct Xplusy <: GeneratingDistribution  end
 struct XplusyRev <: GeneratingDistribution end
 struct Uniform2D <: GeneratingDistribution end
 struct X2plusy <: GeneratingDistribution end
+struct X2plusyRev <: GeneratingDistribution end
 struct Mixture <: GeneratingDistribution
     p::Float64
     comp1::GeneratingDistribution
@@ -27,6 +28,7 @@ end
 loss(x, c) = (x-c)^2
 err(dist::GeneratingDistribution, c) =  x -> loss(dens(dist,x), c)
 
+#-------------
 function gendata(::Xplusy, N)
         x = -0.5 .+ 0.5 *sqrt.(1 .+ 8*rand(N))
         y = -x .+ sqrt.(x.^2 .+ (2x .+ 1) .* rand(N))
@@ -35,15 +37,23 @@ end
 binprob(::Xplusy, xm, x, ym, y) =  0.5*(y-ym)*(x^2-xm^2) + 0.5*(x-xm)*(y^2-ym^2)
 support(::Xplusy) = [(0.0, 1.0), (0.0, 1.0)]
 dens(::Xplusy, x) = x[1] + x[2]
+#-------------
+function gendata(dist::XplusyRev,N)
+    x, y = gendata(Xplusy(), N)
+    1.0 .- x, 1.0 .- y
+end
+binprob(::XplusyRev, xm, x, ym, y) = binprob(Xplusy(), 1.0 - x, 1.0 - xm, 1.0 - y, 1.0 - ym)
+support(::XplusyRev) = support(Xplusy())
+dens(::XplusyRev,x) = 100.0 #@error "not implemented yet"
 
-
+#-------------
 function gendata(::Uniform2D, N)
     rand(N), rand(N)
 end
 binprob(::Uniform2D, xm, x, ym, y) = (x-xm)*(y-ym)
 support(::Uniform2D) = [(0.0, 1.0), (0.0, 1.0)]
 dens(::Uniform2D, x) = 1.0
-
+#-------------
 function gendata(::X2plusy, N)
     u = rand(N)
     x = (2u .+ sqrt.(4*u.^2 .+ 1)).^(1/3) .- abs.(2u .- sqrt.(4*u.^2 .+ 1)).^(1/3)
@@ -53,8 +63,15 @@ end
 binprob(::X2plusy, xm, x, ym, y) = (3/8)*((y-ym)*(x^3 - xm^3)/3 + 0.5*(x-xm)*(y^2-ym^2))
 support(::X2plusy) = [(0.0, 1.0), (0.0, 2.0)]
 dens(::X2plusy, x) = (3/8)*(x[1]^2 + x[2])
-
-
+#-------------
+function gendata(dist::X2plusyRev,N)
+    x, y = gendata(X2plusy(), N)
+    1.0 .- x,  y
+end
+binprob(::X2plusyRev, xm, x, ym, y) = binprob(X2plusy(), 1.0 - x, 1.0 - xm, ym, y)
+support(::X2plusyRev) = support(X2plusy())
+dens(::X2plusyRev,x) = 100.0 #@error "not implemented yet"
+#-------------
 function gendata(dist::Mixture, N)
     u = rand(Bernoulli(dist.p), N)
     x1, y1 = gendata(dist.comp1,N)
@@ -62,16 +79,11 @@ function gendata(dist::Mixture, N)
     u .* x1 + (1 .- u) .* x2, u .* y1 + (1 .- u) .*y2
 end
 binprob(dist::Mixture, xm, x, ym, y) = dist.p * binprob(dist.comp1, xm, x, ym, y) + (1.0 - dist.p) * binprob(dist.comp2, xm, x, ym, y)
-support(::Mixture) = [(0.0, 1.0), (0.0, 1.0)] #FIXME
-dens(dist::Mixture, x) = dis.p * dens(dist.comp1, x) +(1.0 - dist.p) * dens(dist.comp2, x)
+support(dist::Mixture) = support(dist.comp1)  ## FIXME
+dens(dist::Mixture, x) = dist.p * dens(dist.comp1, x) +(1.0 - dist.p) * dens(dist.comp2, x)
 
-function gendata(dist::XplusyRev,N)
-    x, y = gendata(Xplusy(), N)
-    1.0 .- x, 1.0 .- y
-end
-binprob(::XplusyRev, xm, x, ym, y) = binprob(Xplusy(), 1.0 - x, 1.0 - xm, 1.0 - y, 1.0 - ym)
-support(::XplusyRev) = [(0.0, 1.0), (0.0, 1.0)]
-dens(::XplusyRev) = @error "not implemented yet"
+
+
 
 function gencensdata(dist::GeneratingDistribution, N)
     x, y = gendata(dist,N)
