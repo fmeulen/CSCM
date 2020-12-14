@@ -15,6 +15,7 @@ wd = getwd()
 dd <- read_csv(paste0(wd,"/out/binprobs.csv")) 
 obs <- read_csv("out/observations.csv")
 trace <- read.csv("out/tracepcn.csv") %>% gather(key="parameter", value="y", theta1, theta10,theta11,logtau)
+mc <- read.csv("out/mcstudy.csv")
 
 p <-dd %>%  ggplot(aes(x, y, fill=value)) + geom_raster(hjust=0,vjust=0) + facet_wrap(~method, scales="free")+
   scale_fill_gradient(low="lightblue", high="black") + xlab("") + ylab("") + theme(aspect.ratio=2/1) #+ ggtitle("Error")
@@ -51,3 +52,8 @@ pdf("./out/traceplotspcn.pdf",width=8, height=6)
 p5  
 dev.off()
 
+pmc <- mc %>% gather(key="prior", value=x, D, LNGL) %>% ggplot(aes(x=x)) + geom_boxplot() + facet_wrap(~prior) + xlab("Wasserstein distance") +  coord_flip()
+pmc
+pdf("./out/wasserstein.pdf",width=8, height=6)
+pmc
+dev.off()

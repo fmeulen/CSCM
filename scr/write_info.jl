@@ -1,3 +1,5 @@
+
+
 θ̄dir = [mean(x[bi]) for x ∈ eachcol(θdir)]
 θ̄gl = [mean(x[bi]) for x ∈ eachcol(θgl)]
 
