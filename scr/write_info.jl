@@ -1,15 +1,16 @@
-#θ̄dir = mat2vec(mean(θdir[bi]))
 θ̄dir = [mean(x[bi]) for x ∈ eachcol(θdir)]
 θ̄gl = [mean(x[bi]) for x ∈ eachcol(θgl)]
 
-# traceplots for pcn
-# tr1 = Plots.plot(θsave[:,1], label="θ[1]")
-# tr2 = Plots.plot(θsave[:,10], label="θ[10]")
-# tr3 = Plots.plot(θsave[:,11], label="θ[11]")
-# tr4 = Plots.plot(log.(τgl), label="log(τ)")
-# lay = @layout [a b; c d]
-# P = Plots.plot(tr1, tr2, tr3, tr4, layout=lay)
-#savefig(P, "./out/traceplots_pcn.pdf")
+# traceplots
+tr1 = Plots.plot(θdir[:,1], label="θ[1] D")
+tr2 = Plots.plot(θdir[:,10], label="θ[10] D")
+tr3 = Plots.plot(log.(τdir), label="log(τ) D")
+tr4 = Plots.plot(θgl[:,1], label="θ[1] LNGL")
+tr5 = Plots.plot(θgl[:,10], label="θ[10] LNGL")
+tr6 = Plots.plot(log.(τgl), label="log(τ) LNGL")
+lay = @layout [a b c; d e f]
+P = Plots.plot(tr1, tr2, tr3, tr4, tr5, tr6, layout=lay)
+savefig(P, "./out/traceplots_jl.pdf")
 
 dtrace = DataFrame(iterate=1:IT,theta1=θgl[:,1], theta10=θgl[:,10],
                         theta11=θgl[:,11], logtau=log.(τgl))
@@ -17,9 +18,9 @@ CSV.write("./out/tracepcn.csv",dtrace)
 
 # true binprobs
 θ0, xx, yy = binprob(dist,bins)
-errdir = binerror(dist, bins, θ̄dir)
-errgl = binerror(dist, bins, θ̄gl)
-sum(errgl)-sum(errdir)
+# errdir = binerror(dist, bins, θ̄dir)
+# errgl = binerror(dist, bins, θ̄gl)
+# sum(errgl)-sum(errdir)
 
 labels = repeat(["D", "LNGL", "true"], inner=length(θ0))
 d = DataFrame(value = [θ̄dir; θ̄gl; θ0],
@@ -29,9 +30,8 @@ CSV.write("./out/binprobs.csv",d)
 
 distdir = norm(θ0 - θ̄dir,1)
 distgl = norm(θ0 - θ̄gl,1)
-#@show distgl/distdir
+@show distgl/distdir
 
-@show sum(errgl)/sum(errdir)
 
 # write observations to csv file
 yobserved = fill("yes",nsample)
@@ -46,8 +46,8 @@ h1 = heatmap(xs, ys, reshape(θ0, bins.n, bins.m),title="true")
 h2 = heatmap(xs, ys, reshape(θ̄dir, bins.n, bins.m),title="D")
 h3 = heatmap(xs, ys, reshape(θ̄gl, bins.n, bins.m),title="LNGL")
 l = @layout [a; b; c]
-plot(h1,h2,h3,layout = l)
-
+PP = plot(h1,h2,h3,layout = l)
+savefig(PP, "./out/heatmaps_jl.pdf")
 
 # write info to file
 facc = open("./out/info.txt","w")
@@ -76,59 +76,6 @@ facc = open("./out/info.txt","w")
 
     write(facc, "Fraction of accepted τ-update steps: ", string(accgl[2]/IT),"\n")
 close(facc)
-
-
-# function wasserstein(θ̄gl, θ̄dir, θ0, bins::Bins; p=1)
-#     m, n = bins.m, bins.n
-#     thgl = θ̄gl
-#     thdir = θ̄dir
-#     th0 = θ0
-#     @rput thgl thdir th0 m n p
-#     R"""
-#     library(transport)
-#     gl <- pp(matrix(thgl, m, n ))
-#     d <- pp(matrix(thdir, m, n))
-#     truepar <- pp(matrix(th0, m, n))
-#     was_gl <- wasserstein(gl,truepar,p=p)
-#     was_dir <- wasserstein(d,truepar,p=p)
-#     """
-#     @rget was_gl was_dir
-#     was_dir, was_gl
-# end
-#
-#
-# 𝒲dir, 𝒲gl = wasserstein(θ̄gl, θ̄dir, θ0, bins::Bins; p=1)
-# using Printf
-# @printf("𝒲dir = %E \n", 𝒲dir)
-# @printf("𝒲gl = %E", 𝒲gl)
-# @show  𝒲gl/𝒲dir
-
-
-## right way to do it:
-function wasserstein(θ̄dir, θ̄gl, θ0, bins::Bins; p=1)
-    points_x = [mean(bins.binx[i:i+1]) for i ∈ 1:bins.m]
-    points_y = [mean(bins.biny[i:i+1]) for i ∈ 1:bins.n]
-    out = [[u, v] for u in points_x for v in points_y]
-    coordmat = zeros(bins.m*bins.n, 2)
-    for i in eachindex(out)
-        coordmat[i,:] = out[i]
-    end
-
-    thgl = θ̄gl
-    thdir = θ̄dir
-    th0 = θ0
-    @rput thgl thdir th0 m n coordmat p
-    R"""
-    library(transport)
-    gl = wpp(coordmat, thgl)
-    dir = wpp(coordmat, thdir)
-    tr0 = wpp(coordmat, th0)
-    was_dir = wasserstein(dir, tr0, p=p)
-    was_gl = wasserstein(gl, tr0, p=p)
-    """
-    @rget was_gl was_dir
-    was_dir, was_gl
-end
 
 
 𝒲dir,  𝒲gl = wasserstein(θ̄dir, θ̄gl, θ0, bins)
