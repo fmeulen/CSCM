@@ -3,11 +3,12 @@
 graphlaplacian(m,n; pow=1) = (Matrix(lap(grid2(m,n))) + I/(m*n)^2)^pow
 
 """
-    dirichlet(ci, bins::Bins, IT; τinit = 1.0, δ=0.1, priorτ = InverseGamma(0.1,0.1))
+    dirichlet(ci, bins::Bins, IT, Πτ; τinit = 1.0, δ=0.1, printskip=5000)
 
 ci:: CensoringInfo (contains info on the observations)
 bins:: Bins (contains info on the bins)
 IT: number of iterations
+Πτ: prior distribution on τ
 
 Returns:
 θsave, τsave, acc
@@ -84,11 +85,12 @@ function loglik!(θ, τ, z,  Uinv, ci, Πτ)
 end
 
 """
-    pcn(ci, bins::Bins, IT; ρ = 0.95, τinit = 1.0, δ=0.1, priorτ = InverseGamma(0.1,0.1))
+    pcn(ci, bins::Bins, IT, Πτ; ρ = 0.95, τinit = 1.0, δ=0.1, printskip=5000)
 
 ci:: CensoringInfo (contains info on the observations)
 bins:: Bins (contains info on the bins)
 IT: number of iterations
+Πτ: prior distribution on τ
 
 Returns:
 θsave, τsave, acc, ρ

@@ -179,10 +179,11 @@ function wasserstein(θ̄dir, θ̄gl, θ0, bins::Bins; p=1)
         coordmat[i,:] = out[i]
     end
 
+
     thgl = θ̄gl
     thdir = θ̄dir
     th0 = θ0
-    @rput thgl thdir th0 m n coordmat p
+    @rput thgl thdir th0 coordmat p
     R"""
     library(transport)
     gl = wpp(coordmat, thgl)

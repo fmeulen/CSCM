@@ -1,11 +1,13 @@
 
-dist = Mixture(0.7,X2plusyRev(), X2plusy())
-nsample = [10, 20]
-m = 25; n=50
+dist = Mixture(0.7,X2plusyRev(), X2plusy());
+m = 25; n= 50
+#dist = Xplusy(); m = 25; n= 25
+nsample = [100, 250, 500]
+
 Πdir = Exponential(1.0)   #Uniform(0.01, 1.0)
-Πτ = Exponential(.1)
-IT = 10_000 # nr of iterations for Dirichlet prior
-nMC = 10
+Πτ = Exponential(1.0)
+IT = 20_000 # nr of iterations for Dirichlet prior
+nMC = 100
 
 function mcmcstudy(dist, nsample::Vector, m, n, Πdir, Πτ, nMC, IT)
     BI = div(IT,3) # nr of burnin iters
@@ -38,4 +40,5 @@ end
 outdir, outgl = mcmcstudy(dist, nsample, m, n, Πdir, Πτ, nMC, 100)
 
 out = DataFrame(D = vec(hcat(outdir...)), LNGL = vec(hcat(outgl...)), samplesize=repeat(nsample,inner = nMC))
-CSV.write("./out/mcstudy.csv",out)
+odir = mkpath("./out/mcstudy")
+CSV.write(joinpath(odir,"mcstudy.csv"),out)
