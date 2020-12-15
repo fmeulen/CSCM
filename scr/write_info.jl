@@ -88,9 +88,9 @@ function  processoutput(θdir, τdir, accdir, θgl, τgl, accgl, ρ,
         write(facc, "Fraction of accepted τ-update steps for Dir prior: ", string(accdir/IT),"\n")
 
         write(facc, "Wasserstein distances: \n")
-        write(facc, "for Dir-prior", 𝒲dir, "\n")
-        write(facc, "for LNGL-prior", 𝒲gl, "\n")
-        write(facc, "ratio:", round(𝒲gl/𝒲dir; digits=3),"\n\n")
+        write(facc, "for Dir-prior", string(𝒲dir), "\n")
+        write(facc, "for LNGL-prior", string(𝒲gl), "\n")
+        write(facc, "ratio:", string(round(𝒲gl/𝒲dir; digits=3)), "\n\n")
 
     close(facc)
 end
