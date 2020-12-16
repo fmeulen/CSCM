@@ -1,0 +1,17 @@
+Data choice: Mixture(0.7, X2plusyRev(), X2plusy())
+Sample size: 200
+Fraction in data with mark observed: 0.725
+
+bin infoBins{StepRangeLen{Float64,Base.TwicePrecision{Float64},Base.TwicePrecision{Float64}}}(50, 100, 0.0:0.02:1.0, 0.0:0.02:2.0)
+Number of iterations: 20000
+Number of burnin iterations: 6666
+Parameter rho for pCN:0.96
+Fraction of accepted pCN steps: 0.6004
+
+Fraction of accepted τ-update steps for LNGL: 0.60355
+Fraction of accepted τ-update steps for Dir prior: 0.2057
+Wasserstein distances: 
+for Dir-prior0.2385153435745619
+for LNGL-prior0.08265891073702994
+ratio:0.347
+

@@ -15,7 +15,7 @@ theme_set(theme_bw(base_size = 12))
 wd = getwd()
 
 dirs <- c("./mnsmall", "./mnmedium", "./mnlarge")
-
+app <- c("_small", "_medium", "_large")
 for (i in 1:3)
 {
   outdir = dirs[i]
@@ -26,7 +26,7 @@ for (i in 1:3)
   p <-dd %>%  ggplot(aes(x, y, fill=binprob)) + geom_raster(hjust=0,vjust=0) + facet_wrap(~method, scales="free")+
     scale_fill_gradient(low="lightblue", high="black") + xlab("") + ylab("") + theme(aspect.ratio=1/1) #+ ggtitle("Error")
   p
-  pdf(paste0(outdir,"/postmean.pdf"),width=8,height=4)
+  pdf(paste0(outdir,"/postmean",app[i],".pdf"),width=8,height=4)
   show(p)
   dev.off()
   

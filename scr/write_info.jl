@@ -1,7 +1,10 @@
 function  processoutput(θdir, τdir, accdir, θgl, τgl, accgl, ρ,
-        dist, nsample, bins, BI, IT, outdir)
+        dist, nsample, bins, BI, IT, iters_saved , outdir)
 
-    bi = BI:IT
+#    bi = BI:IT
+    ITsaved = length(iters_saved)
+    bi = Int(round(BI*ITsaved/IT)):ITsaved
+
     # compute posterior mean
     θ̄dir = [mean(x[bi]) for x ∈ eachcol(θdir)]
     θ̄gl = [mean(x[bi]) for x ∈ eachcol(θgl)]
@@ -17,7 +20,7 @@ function  processoutput(θdir, τdir, accdir, θgl, τgl, accgl, ρ,
     P = Plots.plot(tr1, tr2, tr3, tr4, tr5, tr6, layout=lay)
     savefig(P, joinpath(outdir,"traceplots_jl.pdf"))
 
-    dtrace = DataFrame(iterate=1:IT,theta1=θgl[:,1], theta10=θgl[:,10],
+    dtrace = DataFrame(iterate=iters_saved ,theta1=θgl[:,1], theta10=θgl[:,10],
                             theta11=θgl[:,11], logtau=log.(τgl))
     CSV.write("./out/tracepcn.csv",dtrace)
 

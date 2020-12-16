@@ -3,6 +3,7 @@ using JLD2
 workdir = @__DIR__
 cd(workdir)
 
+Random.seed!(5)
 nsample = 200
 
 #dist = Uniform2D()

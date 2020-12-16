@@ -23,8 +23,8 @@ function mcmcstudy(dist, nsample::Vector, m, n, Πdir, Πτ, nMC, IT)
         for j ∈ 1:nMC
             x, y, t, ind_yknown, ind_yunknown = gencensdata(dist, nsample[k])
             ci = construct_censoringinfo(t, y, ind_yknown, ind_yunknown, bins)
-            θdir, τdir, accdir = dirichlet(ci, bins, IT, Πdirτ)
-            θgl, τgl, accgl, ρ = pcn(ci, bins, IT, Πτ; ρ=.96, δ=0.6)
+            θdir, τdir, accdir, iters_saved = dirichlet(ci, bins, IT, Πdirτ)
+            θgl, τgl, accgl, ρ, iters_saved = pcn(ci, bins, IT, Πτ; ρ=.96, δ=0.6)
             θ̄dir = [mean(x[bi]) for x ∈ eachcol(θdir)]
             θ̄gl = [mean(x[bi]) for x ∈ eachcol(θgl)]
             𝒲dir_,  𝒲gl_ = wasserstein(θ̄dir, θ̄gl, θ0, bins)

@@ -18,7 +18,7 @@ wd = getwd()
 dd <- read_csv(paste0(wd,"/out/binprobs.csv")) 
 obs <- read_csv("out/observations.csv")
 trace <- read.csv("out/tracepcn.csv") %>% gather(key="parameter", value="y", theta1, theta10,theta11,logtau)
-mc <- read_csv("out/mcstudy.csv", col_types = cols(samplesize = col_character()))
+
 
 p <-dd %>%  ggplot(aes(x, y, fill=binprob)) + geom_raster(hjust=0,vjust=0) + facet_wrap(~method, scales="free")+
   scale_fill_gradient(low="lightblue", high="black") + xlab("") + ylab("") + theme(aspect.ratio=1/1) #+ ggtitle("Error")
@@ -55,26 +55,4 @@ p5 <- trace %>% ggplot() + geom_path(aes(x=iterate,y=y)) + facet_wrap(~parameter
 pdf("./out/traceplotspcn.pdf",width=8, height=6)
 p5  
 dev.off()
-
-
-## plots for MC-study
-
-pmc <- mc %>% gather(key="prior", value=x, D, LNGL) %>% ggplot(aes(x=x)) + geom_boxplot(fill="lightblue") +
-  facet_wrap(~ prior+samplesize, nrow=1) + xlab("Wasserstein distance") + 
-  coord_flip() +   scale_y_continuous(breaks = NULL)
-pmc
-pdf("./out/wasserstein1.pdf",width=8, height=3)
-pmc
-dev.off()
-
-
-pmc2 <- mc %>% ggplot(aes(x=D, y = LNGL, colour=samplesize)) + geom_point() + geom_abline(aes(slope=1,intercept=0))  +
-  theme(aspect.ratio=1) +  scale_colour_colorblind() 
-pmc2
-
-
-pdf("./out/wasserstein2.pdf",width=4, height=4)
-pmc2
-dev.off()
-
 

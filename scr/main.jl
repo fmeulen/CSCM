@@ -21,6 +21,7 @@ include("write_info.jl")
 
 # Simuldate data
 dist = Xplusy()
+dist = Mixture(0.7,X2plusyRev(), X2plusy())
 nsample = 100
 x, y, t, ind_yknown, ind_yunknown = gencensdata(dist, nsample)
 
@@ -37,14 +38,14 @@ BI = div(IT,3)
 
 # Dirichlet prior
 Πdirτ = Exponential(1.0)   #Uniform(0.01, 1.0)
-@time θdir, τdir, accdir = dirichlet(ci, bins, IT, Πdirτ)
+@time θdir, τdir, accdir, iters_saved  = dirichlet(ci, bins, IT, Πdirτ)
 @show accdir/IT
 
 # pCN for LNGL-prior
 Πτ = Exponential(1.0)
-@time θgl, τgl, accgl, ρ = pcn(ci, bins, IT, Πτ; ρ=.96, δ=0.6)
+@time θgl, τgl, accgl, ρ, iters_saved  = pcn(ci, bins, IT, Πτ; ρ=.96, δ=0.6)
 @show accgl/IT
 
 outdir = "./out"
 processoutput(θdir, τdir, accdir, θgl, τgl, accgl, ρ,
-        dist, nsample, bins, BI, IT, outdir)
+        dist, nsample, bins, BI, IT, iters_saved, outdir)

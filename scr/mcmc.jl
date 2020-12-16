@@ -2,6 +2,7 @@
 
 graphlaplacian(m,n; pow=1) = (Matrix(lap(grid2(m,n))) + I/(m*n)^2)^pow
 
+
 """
     dirichlet(ci, bins::Bins, IT, Πτ; τinit = 1.0, δ=0.1, printskip=5000)
 
@@ -13,7 +14,7 @@ IT: number of iterations
 Returns:
 θsave, τsave, acc
 """
-function dirichlet(ci, bins::Bins, IT, Πτ; τinit = 1.0, δ=0.1, printskip=5000)
+function dirichlet(ci, bins::Bins, IT, Πτ; τinit = 1.0, δ=0.1, printskip=5000, saveskip=1)
     m, n = bins.m, bins.n
     N = m*n
     # initialise counts of bins by random assignment
@@ -26,10 +27,9 @@ function dirichlet(ci, bins::Bins, IT, Πτ; τinit = 1.0, δ=0.1, printskip=500
     τ = τinit
     θ = rand(Dirichlet(counts_fulldata .+ τ))
 
-    θsave = zeros(IT,N)
-    τsave = zeros(IT)
-    τsave[1] = τ
-    θsave[1,:] = θ
+    τsave = [τ]
+    θsave = [θ]
+    iters_saved = [1]
     acc = 0
 
     for it ∈ 2:IT
@@ -42,7 +42,7 @@ function dirichlet(ci, bins::Bins, IT, Πτ; τinit = 1.0, δ=0.1, printskip=500
         end
         # update θ
         rand!(Dirichlet( counts_fulldata .+ τ), θ)
-        θsave[it,:]  = θ
+
         # update τ
         τᵒ = τ * exp(δ*randn())
         A = logpdf(Dirichlet(N,τᵒ), θ)  -
@@ -53,14 +53,19 @@ function dirichlet(ci, bins::Bins, IT, Πτ; τinit = 1.0, δ=0.1, printskip=500
             τ = τᵒ
             acc += 1
         end
-        τsave[it] = τ
+
+        if mod(it, saveskip)==0
+            push!(τsave, copy(τ))
+            push!(θsave, copy(θ))
+            push!(iters_saved, it)
+        end
 
         if mod(it,printskip)==0
             frac_accepted = round.(acc/it;digits=2)
             @show (it, frac_accepted)
         end
     end
-    θsave, τsave, acc
+    hcat(θsave...)' , τsave, acc, iters_saved
 end
 
 
@@ -95,7 +100,7 @@ IT: number of iterations
 Returns:
 θsave, τsave, acc, ρ
 """
-function pcn(ci, bins::Bins, IT, Πτ; ρ = 0.95, τinit = 1.0, δ=0.1, printskip=5000)
+function pcn(ci, bins::Bins, IT, Πτ; ρ = 0.95, τinit = 1.0, δ=0.1, printskip=5000, saveskip=1)
     m, n = bins.m, bins.n
     L = PDMat(graphlaplacian(m,n))
     Uinv = inv(L.chol.U)
@@ -111,10 +116,9 @@ function pcn(ci, bins::Bins, IT, Πτ; ρ = 0.95, τinit = 1.0, δ=0.1, printski
     θᵒ = zeros(N)
 
     ρc = sqrt(1.0 - ρ^2)
-    θsave = zeros(IT,N)
-    τsave = zeros(IT)
-    θsave[1,:]  = θ
-    τsave[1] = τ
+    θsave  = [θ]
+    τsave = [τ]
+    iters_saved = [1]
     acc = [1, 1]
     for it ∈ 2:IT
         # update z
@@ -127,7 +131,6 @@ function pcn(ci, bins::Bins, IT, Πτ; ρ = 0.95, τinit = 1.0, δ=0.1, printski
             ll = llᵒ
             acc[1] += 1
         end
-        θsave[it,:]  = θ
 
         # update τ
         τᵒ = τ * exp(δ * randn())
@@ -139,13 +142,19 @@ function pcn(ci, bins::Bins, IT, Πτ; ρ = 0.95, τinit = 1.0, δ=0.1, printski
             ll = llᵒ
             acc[2] += 1
         end
-        τsave[it] = τ
+
+        if mod(it, saveskip)==0
+            push!(τsave, copy(τ))
+            push!(θsave, copy(θ))
+            push!(iters_saved, it)
+        end
 
         if mod(it,printskip)==0
             frac_acc = round.(acc/it;digits=2)
             @show (it, frac_acc)
         end
     end
+
     @show "Fraction of accepted pCN steps equals: " acc/IT
-    θsave, τsave, acc, ρ
+    hcat(θsave...)' , τsave, acc, ρ, iters_saved
 end
